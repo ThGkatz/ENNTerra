@@ -5,8 +5,10 @@
 #include "River.h"
 #include "Gatherer.h"
 #include "Guardian.h"
+#include "Stimulus.h"
 #include <iostream>
 #include <array>
+#include <list>
 
 namespace ThGkatz
 {
@@ -17,6 +19,9 @@ namespace ThGkatz
 	{
 		setSpeed(65);//this is the maximum speed a predator can achieve . ( 50 for gatherers , 60 for guardians)
 		setShape(createShape(position));
+		setNumberOfNeuralInputs(28);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture plus 2 for closestGatherer
+		setNeuralInputs(std::vector<float>(getNumberOfNeuralInputs(), 0));
+		setStimuli(std::vector<std::list< Stimulus* >>(7));
 	}
 
 	Predator::~Predator() {}
@@ -70,11 +75,11 @@ namespace ThGkatz
 
 	void Predator::createBrainInput()
 	{
-
+		emptyStimuli();
 		std::vector<Entity*> visibles = getVisibleEntities();
 		//for each visible entity
 		for (unsigned int i = 0; i < visibles.size(); i++) {
-			Stimulus* myStim;
+			Stimulus* myStim = new Stimulus;
 			std::array<float, 2> distAngleArray = { 0,0 };
 			//organisms count as circle shapes (don't ask why)
 			if (Organism* temp = dynamic_cast<Organism*>(visibles[i])) {
@@ -111,7 +116,7 @@ namespace ThGkatz
 			myStim->angle = distAngleArray[1];
 			addStimulus(myStim);//add the new entity angle , distance and type to the stimuli
 		}
-		Stimulus* stim;
+		Stimulus* stim = new Stimulus;
 		std::array<float, 2> distAngleArrayGath = { 0,0 };
 		if (getClosestGatherer() == nullptr) {
 			distAngleArrayGath = { 0,0 };
@@ -125,5 +130,68 @@ namespace ThGkatz
 		stim->type = EntityTypes::NEARGATHERER;
 		addStimulus(stim);
 
+		//create the actual array of inputs for the neural net.
+		createNeuralInputs();
 	}
+
+	void Predator::createNeuralInputs() {
+		getNeuralInputs().clear();
+		//temp vector for the neuralInputs
+		std::vector<float> myTempInputs(getNumberOfNeuralInputs(), 0);
+
+		std::vector<std::list<Stimulus*>> myStimuli = getStimuli();
+		//for each stimuli type list 
+		int counter = 2;
+		for (int i = 0; i < myStimuli.size(); i++) {
+		
+			std::list<Stimulus*>::iterator it;
+			//for each stimulus object
+			Stimulus* tempClosest = new Stimulus;
+			tempClosest->distance = 0;
+			tempClosest->angle = 0;
+			Stimulus* tempAverage = new Stimulus;
+			tempAverage->distance = 0;
+			tempAverage->angle = 0;
+			float totalDistance = 0;
+			float totalAngle = 0;
+			for (it = myStimuli[i].begin(); it != myStimuli[i].end(); ++it) {
+				//find the closest of the list (add to neuralInputs temp vector)
+				if (it == myStimuli[i].begin()) {
+					tempClosest = *it;
+				}
+				else if ((*it)->distance <= tempClosest->distance) tempClosest = *it;
+				//find the average of the list (add to neuralInputs temp vector)
+				totalDistance += (*it)->distance;
+				totalAngle += (*it)->angle;
+			}//end for stimuli list
+		
+			if (totalDistance != 0) {
+				tempAverage->angle = totalAngle / myStimuli[i].size();
+				tempAverage->distance = totalDistance / myStimuli[i].size();
+			}
+			
+			//check definition of Organism::neuralInputs variable for information of the following code
+			//Predator - specific value . Predators can sense the closest gatherer to them .
+			if (i == EntityTypes::NEARGATHERER) {
+				myTempInputs[4 * i] = tempClosest->distance;
+				myTempInputs[4 * i + 1] = tempClosest->angle;
+			}
+			else {
+				myTempInputs[4 * i] = tempClosest->distance;
+				myTempInputs[4 * i + 1] = tempClosest->angle;
+				myTempInputs[i + counter] = tempAverage->distance;
+				myTempInputs[i + counter + 1] = tempAverage->angle;
+				counter += 3;
+			}
+			
+		
+		}//end for stimuli
+		myTempInputs[myTempInputs.size() - 2] = getEnergy(); //energy takes 1 neuron
+		myTempInputs[myTempInputs.size() - 1] = getMoisture();//moisture takes one neuron
+
+		//set the new NeauralInputs vector.
+		setNeuralInputs(myTempInputs);
+
+	}
+
 }

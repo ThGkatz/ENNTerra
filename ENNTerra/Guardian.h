@@ -51,7 +51,10 @@ namespace ThGkatz
 		sf::ConvexShape* createShape(sf::Vector2i);
 		//creates and returns the round sensor that is uniquely implemented in the guardians
 		b2FixtureDef* createRoundSensor();
+		//virtual method. check Organism abstract class
 		void createBrainInput();
+		//virtual method. check Organism abstract class
+		void createNeuralInputs();
 	};
 
 

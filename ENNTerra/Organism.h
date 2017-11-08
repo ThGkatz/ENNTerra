@@ -4,13 +4,14 @@
 #include"Entity.h"
 #include "Stimulus.h"
 #include <vector>
+#include <list>
 
 #ifndef ORGANISM_H
 #define ORGANISM_H
 
 namespace ThGkatz
 {
-	enum EntityTypes {RIVER , ROCK , BUSH , VIGATHERER , NEARGATHERER , GUARDIAN , PREDATOR};
+	
 
 	class Organism : public Entity
 	{
@@ -29,6 +30,7 @@ namespace ThGkatz
 		//called after collision has ended . the entity is removed from the vector
 		void lostVisual(Entity*);
 		void addStimulus(Stimulus*);
+		void emptyStimuli();
 		//getter methods
 		const float getAngle() const;
 		b2Body* getBody() const;
@@ -45,7 +47,9 @@ namespace ThGkatz
 		sf::Clock* getClock() ;
 		//returns a vector with all the visible objects in the field of vision of this organism
 		const std::vector<Entity*> getVisibleEntities() const;
-		const std::vector<Stimulus*> getStimuli() const;
+		const std::vector<std::list<Stimulus*>> getStimuli() const;
+		std::vector<float> getNeuralInputs();
+		const int getNumberOfNeuralInputs();
 		//setters
 		void setTexture(sf::Texture*);
 		void setShape(sf::ConvexShape*);
@@ -53,6 +57,9 @@ namespace ThGkatz
 		void setMoisture(int);
 		void setSpeed(float);
 		void setDeadManWalking(bool);
+		void setNeuralInputs(std::vector<float>);
+		void setNumberOfNeuralInputs(int);
+		void setStimuli(std::vector<std::list<Stimulus*>>);
 
 	private:
 		b2Body* body;
@@ -68,7 +75,9 @@ namespace ThGkatz
 		int energy;//gets depleted with time , refilling depends on the organism type
 		int moisture;//gets depleted with time , refills at rivers
 		sf::Clock deathClock;//every 2 seconds the organism loses 1 point of energy and moisture . 
-		std::vector<Stimulus*> stimuli;
+		std::vector<std::list<Stimulus*>> stimuli;
+		std::vector<float> neuralInputs;
+		int numberOfNeuralInputs;
 
 
 	private:
@@ -77,6 +86,11 @@ namespace ThGkatz
 		//creates a fixtureDef defining a cone fixture that uses collision
 		//callbacks to serve as a field of vision for the organism
 		b2FixtureDef* createSensor();
+		//For each stimuli type (See Stimulus type enumerator), this function creates
+		//four neurons (float). 2 with the distance and angle of the closest entity
+		//and two with the distance and angle of the average for the specific entity type.
+		//In addition, more neurons are created depending on the organism type, like energy and moisture.
+		virtual void createNeuralInputs() = 0;
 
 		
 
@@ -91,6 +105,7 @@ namespace ThGkatz
 		virtual void feed();
 		//just restarts the Deathclock property 
 		void restartClock();
+		//fill the stimuli vector of lists with each of the entities the organism senses
 		virtual void createBrainInput() = 0;
 		/*
 		the parameter passed on the function is the body in box2d of the 
@@ -109,6 +124,8 @@ namespace ThGkatz
 		Returns a b2Vec2 point 
 		*/
 		b2Vec2 getClosestPoint(b2Vec2*);
+
+		
 	};
 }
 #endif // !ORGANISM_H

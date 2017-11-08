@@ -24,7 +24,10 @@ namespace ThGkatz
 		Gatherer* closestGatherer;
 	private:
 		sf::ConvexShape* createShape(sf::Vector2i);
+		//virtual method. check Organism abstract class
 		void createBrainInput();
+		//virtual method. check Organism abstract class
+		void createNeuralInputs();
 	};
 }
 

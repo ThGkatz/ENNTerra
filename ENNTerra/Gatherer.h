@@ -16,11 +16,12 @@ namespace ThGkatz
 		Gatherer(b2World&, sf::Vector2i);
 		//deconstructor
 		~Gatherer();
-		
 		void checkCollision(Entity*);
 	private:
 		sf::ConvexShape* createShape(sf::Vector2i);
 		void createBrainInput();
+		void createNeuralInputs();
+
 		
 	};
 }//ThGkatz

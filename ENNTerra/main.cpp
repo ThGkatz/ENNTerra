@@ -11,6 +11,7 @@
 #include "Predator.h"
 #include "Guardian.h"
 #include "Organism.h"
+#include "Stimulus.h"
 #include<iostream>
 #include<string>
 #include<vector>
@@ -33,6 +34,8 @@ using ThGkatz::RatioVar;
 using ThGkatz::Predator;
 using ThGkatz::Guardian;
 using ThGkatz::Organism;
+using ThGkatz::Stimulus;
+
 
 //world parameters
  
@@ -161,7 +164,7 @@ int main()
 	
 	//myWindow.setView(camera);
 	sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
-	Predator* testPre = new Predator(world, position);
+	Guardian* testPre = new Guardian(world, position);
 	organisms.push_back(testPre);
 	sf::Vector2i position2 = findCoordinates(organisms, obstacles, 2);
 	Gatherer* testGath = new Gatherer(world, position2);
@@ -209,7 +212,7 @@ int main()
 			forward = true;
 		}
 		//for (unsigned int i = 0; i < organisms.size(); i++)
-			organisms[1]->move(left , right , forward);
+			organisms[0]->move(left , right , forward);
 
 			
 
@@ -269,7 +272,6 @@ int main()
 				delete temp;
 				organisms.erase(organisms.begin() + i);
 			}
-				
 		}
 
 		//draw the obstacles
@@ -281,8 +283,14 @@ int main()
 		myWindow.display();
 	}//while window.isOpen
 	
-	
-	
+	Organism* temp = organisms[0];
+	std::vector<float> myTest = temp->getNeuralInputs();
+	for (short i = 0; i < myTest.size(); i++) {
+			std::cout << "-------------"<< i << "-------------" << std::endl;
+			std::cout << myTest[i] << std::endl;
+	}
+	std::cout << "Press ENTER to continue...";
+	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 	return 0;
 }
 

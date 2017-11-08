@@ -4,8 +4,10 @@
 #include "Predator.h"
 #include "River.h"
 #include "RatioVar.h"
+#include "Stimulus.h"
 #include <iostream>
 #include <array>
+#include <list>
 
 namespace ThGkatz
 {
@@ -18,7 +20,9 @@ namespace ThGkatz
 	{
 		setSpeed(60);//this is the maximum speed a guardian can achieve . ( 50 for gatherers , 65 for predator)
 		setShape(createShape(position));
-		
+		setNumberOfNeuralInputs(27);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture plus one for bool nearGatherer
+		setNeuralInputs(std::vector<float>(getNumberOfNeuralInputs(), 0));
+		setStimuli(std::vector<std::list< Stimulus* >>(7));
 		roundSensor = *createRoundSensor();
 
 		getBody()->CreateFixture(&roundSensor);
@@ -147,18 +151,18 @@ namespace ThGkatz
 			{
 				//if an exception is thrown it means a near gatherer has died . so just erase it from the vector
 				nearGatherers.erase(nearGatherers.begin() + i);
-			}
-				
-				
+			}		
 		}
+		createBrainInput();
 	}
 
 	void Guardian::createBrainInput()
 	{
+		emptyStimuli();
 		std::vector<Entity*> visibles = getVisibleEntities();
 		//for each visible entity
 		for (unsigned int i = 0; i < visibles.size(); i++) {
-			Stimulus* myStim;
+			Stimulus* myStim = new Stimulus;
 			std::array<float, 2> distAngleArray = { 0,0 };
 			//organisms count as circle shapes (don't ask why)
 			if (Organism* temp = dynamic_cast<Organism*>(visibles[i])) {
@@ -197,7 +201,7 @@ namespace ThGkatz
 		//now compute the distance and angle for all the gatherers near the guardian
 		std::vector<Entity*> nearGatherers = getNearGatherers();
 		for (short i = 0; i < nearGatherers.size(); i++) {
-			Stimulus* stim;
+			Stimulus* stim = new Stimulus;
 			std::array<float, 2> distAngleArray = { 0,0 };
 			Organism* temp = dynamic_cast<Organism*>(nearGatherers[i]);
 			b2Body* body = temp->getBody();
@@ -207,6 +211,60 @@ namespace ThGkatz
 			stim->type = EntityTypes::NEARGATHERER;
 			addStimulus(stim);
 		}
+		//create the actual array of inputs for the neural net.
+		createNeuralInputs();
+	}
+
+	void Guardian::createNeuralInputs() {
+		getNeuralInputs().clear();
+		//temp vector for the neuralInputs
+		std::vector<float> myTempInputs(getNumberOfNeuralInputs(), 0);
+
+		std::vector<std::list<Stimulus*>> myStimuli = getStimuli();
+		//for each stimuli type list 
+		int counter = 2;
+		for (int i = 0; i < myStimuli.size(); i++) {
+			if (i == EntityTypes::NEARGATHERER) continue;
+			std::list<Stimulus*>::iterator it;
+			//for each stimulus object
+			Stimulus* tempClosest = new Stimulus;
+			tempClosest->distance = 0;
+			tempClosest->angle = 0;
+			Stimulus* tempAverage = new Stimulus;
+			tempAverage->distance = 0;
+			tempAverage->angle = 0;
+			float totalDistance = 0;
+			float totalAngle = 0;
+			for (it = myStimuli[i].begin(); it != myStimuli[i].end(); ++it) {
+				//find the closest of the list (add to neuralInputs temp vector)
+				if (it == myStimuli[i].begin()) {
+					tempClosest = *it;
+				}
+				else if ((*it)->distance <= tempClosest->distance) tempClosest = *it;
+				//find the average of the list (add to neuralInputs temp vector)
+				totalDistance += (*it)->distance;
+				totalAngle += (*it)->angle;
+			}//end for stimuli list
+			if (totalDistance != 0) {
+				tempAverage->angle = totalAngle / myStimuli[i].size();
+				tempAverage->distance = totalDistance / myStimuli[i].size();
+			}
+			
+			//check definition of Organism::neuralInputs variable for information of the following code
+			if (i != EntityTypes::NEARGATHERER) {
+				myTempInputs[4 * i] = tempClosest->distance;
+				myTempInputs[4 * i + 1] = tempClosest->angle;
+				myTempInputs[i + counter] = tempAverage->distance;
+				myTempInputs[i + counter + 1] = tempAverage->angle;
+				counter += 3;
+			}
+		}//end for stimuli
+		myTempInputs[myTempInputs.size() - 3] = (isNearGatherers()?1:0); //near gatherers boolean var takes 1 neuron(Guardian only)
+		myTempInputs[myTempInputs.size() - 2] = getEnergy(); //energy takes 1 neuron
+		myTempInputs[myTempInputs.size() - 1] = getMoisture();//moisture takes one neuron
+
+		//set the new NeauralInputs vector.
+		setNeuralInputs(myTempInputs);
 
 	}
 

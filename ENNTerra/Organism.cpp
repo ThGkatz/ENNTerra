@@ -10,6 +10,7 @@
 #include <iostream>
 #include<vector>
 #include <array>
+#include <list>
 
 namespace ThGkatz 
 {
@@ -158,10 +159,17 @@ namespace ThGkatz
 		return myClock;
 	}
 
-	const std::vector<Stimulus*> Organism::getStimuli() const{
+	const std::vector<std::list<Stimulus*>> Organism::getStimuli() const{
 		return stimuli;
 	}
 
+	std::vector<float> Organism::getNeuralInputs() {
+		return neuralInputs;
+	}
+
+	const int Organism::getNumberOfNeuralInputs() {
+		return numberOfNeuralInputs;
+	}
 	//setter methods
 	void Organism::setTexture(sf::Texture* anotherTexture)
 	{
@@ -194,10 +202,29 @@ namespace ThGkatz
 		deadManWalking = dead;
 	}
 
-	void Organism::addStimulus(Stimulus* stim) {
-		stimuli.push_back(stim);
+	void Organism::setNeuralInputs(const std::vector<float> inputsVector) {
+		neuralInputs = inputsVector;
 	}
 
+	void Organism::setNumberOfNeuralInputs(const int number) {
+		numberOfNeuralInputs = number;
+	}
+
+	void Organism::setStimuli(std::vector<std::list<Stimulus*>> myStimuli) {
+		stimuli = myStimuli;
+	}
+
+	void Organism::addStimulus(Stimulus* stim) {
+		stimuli[stim->type].push_back(stim);
+	}
+
+	void Organism::emptyStimuli() {
+		
+		for (int i = 0; i < stimuli.size(); i++) {
+			stimuli[i].clear();
+		}
+
+	}
 
 	void Organism::update()
 	{
@@ -294,7 +321,7 @@ namespace ThGkatz
 			//std::cout << "Hey look ! that's a Gatherer !\n";
 		}
 		else if (Rock* temp = dynamic_cast<Rock*>(other)) {
-			std::cout << "Hey look ! that's a Rock !\n";
+			//std::cout << "Hey look ! that's a Rock !\n";
 		}
 		else if (River* temp = dynamic_cast<River*>(other))
 		{
