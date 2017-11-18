@@ -23,11 +23,11 @@ namespace ThGkatz
 	Gatherer::Gatherer() : Organism()
 	{}
 
-	Gatherer::Gatherer(b2World& world, sf::Vector2i position) : Organism(world, position)
+	Gatherer::Gatherer(b2World& world, sf::Vector2i position) : Organism(world, position, 26)
 	{
 		setSpeed(50);//this is the maximum speed a gatherer can achieve . ( 65 for predators , 60 for guardians)
 		setShape(createShape(position));
-		setNumberOfNeuralInputs(26);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture
+		//setNumberOfNeuralInputs(26);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture
 		setNeuralInputs(std::vector<float>(getNumberOfNeuralInputs(), 0)); 
 		setStimuli(std::vector<std::list< Stimulus* >> (6));
 	}
@@ -70,8 +70,6 @@ namespace ThGkatz
 			}
 			
 		}
-		else if (Rock* other = dynamic_cast<Rock*>(otherEntity))
-			std::cout << "I hit a rock" << std::endl;
 		else if (River* other = dynamic_cast<River*>(otherEntity))
 		{
 			drink();
@@ -171,7 +169,8 @@ namespace ThGkatz
 		myTempInputs[myTempInputs.size() - 1] = getMoisture();//moisture takes one neuron
 		 //set the new NeauralInputs vector.
 		setNeuralInputs(myTempInputs);
-			
+		//call the think function and move accordingly
+		think();
 	}
 
 

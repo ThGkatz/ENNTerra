@@ -151,8 +151,8 @@ int main()
 
 	sf::Clock myTextureClock;
 	//creation of the organisms
-	std::vector<Organism*> organisms;//= organismFactory(world, obstacles);
-	
+	std::vector<Organism*> organisms = organismFactory(world, obstacles, 10);
+	std::cout << organisms.size();
 	
 	float timestep = 1 / 60.0f;
 
@@ -163,7 +163,7 @@ int main()
 	sf::View camera(myCameraCenter, sf::Vector2f(500, 500));*/
 	
 	//myWindow.setView(camera);
-	sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
+	/*sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
 	Guardian* testPre = new Guardian(world, position);
 	organisms.push_back(testPre);
 	sf::Vector2i position2 = findCoordinates(organisms, obstacles, 2);
@@ -171,7 +171,7 @@ int main()
 	organisms.push_back(testGath);
 	sf::Vector2i position3 = findCoordinates(organisms, obstacles, 2);
 	Gatherer* testGath2 = new Gatherer(world, position3);
-	organisms.push_back(testGath2);
+	organisms.push_back(testGath2);*/
 	while (myWindow.isOpen())//main loop
 	{
 		//call the step function of box2d which handles all the physical computing
@@ -190,31 +190,6 @@ int main()
 			}
 			
 		}
-		
-
-		bool left = false;
-		bool right = false;
-		bool forward = false;
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-		{
-
-			left = true;
-
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-		{
-			right = true;
-			
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-		{
-
-			forward = true;
-		}
-		//for (unsigned int i = 0; i < organisms.size(); i++)
-			organisms[0]->move(left , right , forward);
-
-			
 
 		//in every loop instance follow a clear-draw-display cycle
 		myWindow.clear(sf::Color::Black);
@@ -255,25 +230,39 @@ int main()
 		
 		//draws the text of the world prameters
 		myWindow.draw(*myText);
+	
+		for (unsigned int i = 0; i < organisms.size(); i++)
+		{			
+				
+				//update all the organisms 
+				if (organisms[i] != NULL&&organisms[i] != nullptr) {
+					
+					if (!organisms[i]->getDeadManWalking()) {
+						
+
+						organisms[i]->update();
+						
+						//and draw them
+						myWindow.draw(*organisms[i]->getShape());
+					}
+					//check if some died
+					else
+					{
+						
+						//if an organism has died we delete it calling the deconstructors 
+						//and then erase it from the vector
+						Organism* temp = organisms[i];
+						
+						organisms.erase(organisms.begin() + i);
+						
+						delete temp;
+						temp = NULL;
+						
+					}
+				}	
+		}
 		//get the closest gatherer for each predator .
 		setClosestGathererOfPredator(organisms);
-		for (unsigned int i = 0; i < organisms.size(); i++)
-		{
-			//update all the organisms 
-			organisms[i]->update();
-			//and draw them
-			myWindow.draw(*organisms[i]->getShape());
-			//check if some died
-			if (organisms[i]->getDeadManWalking())
-			{
-				//if an organism has died we delete it calling the deconstructors 
-				//and then erase it from the vector
-				Organism* temp = organisms[i];
-				delete temp;
-				organisms.erase(organisms.begin() + i);
-			}
-		}
-
 		//draw the obstacles
 		for (unsigned int i = 0; i < obstacles.size(); i++)
 		{
@@ -283,12 +272,12 @@ int main()
 		myWindow.display();
 	}//while window.isOpen
 	
-	Organism* temp = organisms[0];
+	/*Organism* temp = organisms[0];
 	std::vector<float> myTest = temp->getNeuralInputs();
 	for (short i = 0; i < myTest.size(); i++) {
 			std::cout << "-------------"<< i << "-------------" << std::endl;
 			std::cout << myTest[i] << std::endl;
-	}
+	}*/
 	std::cout << "Press ENTER to continue...";
 	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 	return 0;
@@ -649,12 +638,11 @@ sf::Vector2i findCoordinates(const std::vector<Obstacle*> builtObstacles, float&
 
 void setClosestGathererOfPredator(std::vector<Organism*> organisms)
 {
-
 	for (int i = 0; i < organisms.size(); i++)
 	{
 		if (Predator* tempPredator = dynamic_cast<Predator*>(organisms[i])) {//for each predator
 			Gatherer* closestGatherer = nullptr;
-			float distance = 1000;
+			float distance = 10000;
 			for (int j = 0; j < organisms.size(); j++) {//for each gatherer
 				if (Gatherer* tempGatherer = dynamic_cast<Gatherer*>(organisms[j])) {
 					if (b2Distance(tempPredator->getBody()->GetPosition(), tempGatherer->getBody()->GetPosition()) < distance) {

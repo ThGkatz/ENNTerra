@@ -21,6 +21,7 @@ namespace ThGkatz
 		body = nullptr;
 		shape = nullptr;
 		texture = nullptr;
+		brain = nullptr;
 		sensorDef = b2FixtureDef();
 		myB2Shape = new b2PolygonShape();
 		bodyDef = b2BodyDef();
@@ -32,11 +33,11 @@ namespace ThGkatz
 
 	}
 
-	Organism::Organism(b2World& world, sf::Vector2i position)
+	Organism::Organism(b2World& world, sf::Vector2i position, int numberOfNeuralInputs)
 	{
 		maxSpeed = 0;
-		energy = 1000;
-		moisture = 50000;
+		energy = 10;
+		moisture = 10;
 		deadManWalking = false;
 		deathClock = sf::Clock();
 
@@ -68,6 +69,9 @@ namespace ThGkatz
 
 		body->SetUserData(this);
 		shape = nullptr;
+		setNumberOfNeuralInputs(numberOfNeuralInputs);
+		//create an instance of neural network with 1 hidden layer and 3 output neurons
+		brain = new NeuralNetWrapper(getNumberOfNeuralInputs(), 3 , 3);
 	}
 
 	Organism::~Organism()
@@ -84,6 +88,7 @@ namespace ThGkatz
 
 		body->GetWorld()->DestroyBody(body);
 		
+		delete brain;
 	}
 
 	//getter methods
@@ -256,13 +261,17 @@ namespace ThGkatz
 			
 	}
 
-	void Organism::move(bool left, bool right, bool forward)
+	void Organism::move(fann_type* outputs)
 	{
+		float desiredSpeed = outputs[1];
+		float desiredLeft = outputs[0];
+		float desiredRight = outputs[2];
+
 		//this is the angle in RADS returned by the body property .
 		//we change it in DEEGREES to make sense .
 		float angle = body->GetAngle() / 3.14 * 180;
-		//0.5 is a random value . ENN will provide with the correct number .
-		float speed = 0.5*maxSpeed;
+		
+		float speed = desiredSpeed*maxSpeed;
 		//we need a cortesian vector for the direction of the applied forces .
 		float m_x, m_y;
 		//adding a 90 degrees worth of rads to the calculation because the box2d engine and 
@@ -270,22 +279,21 @@ namespace ThGkatz
 		m_x = speed*cosf(angle*3.14 / 180 - 90 * 3.14 / 180);
 		m_y = speed*sinf(angle*3.14 / 180 - 90 * 3.14 / 180);
 
-		if (left)
-		{
+		
+			getBody()->ApplyTorque(-10*desiredLeft, true);
 
-			getBody()->ApplyTorque(-10, true);
-
-		}
-		if (right)
-		{
-
-			getBody()->ApplyTorque(10, true);
-		}
-		if (forward)
-		{
-
+			getBody()->ApplyTorque(10*desiredRight, true);
+		
 			getBody()->ApplyForce(b2Vec2(m_x, m_y), getBody()->GetWorldCenter(), true);
-		}
+		
+	}
+
+	void Organism::think() {
+		std::vector<float> inputsVector = getNeuralInputs();
+		fann_type* inputsArray = &inputsVector[0];
+		
+		move(brain->run(inputsArray));
+	
 	}
 
 	void Organism::drink()
@@ -350,57 +358,59 @@ namespace ThGkatz
 
 	std::array<float , 2> Organism::getDistanceAndAngleCircle( b2Body*& body , char visible)
 	{
-		//myArray stores the distance and the angle in degrees
-		std::array<float, 2> distAngleArray = { 0,0 };
-		//position of the visible entity
-		b2Vec2 visiblePosition(body->GetPosition().x, body->GetPosition().y);
-		//radius of the entity
-		float rad = 0;
-		if (body->GetFixtureList()->GetShape()->GetType() == b2Shape::Type::e_polygon)//organism
-			rad = 2;
-		else
-			rad = body->GetFixtureList()->GetShape()->m_radius;
-		//distance calculation (1 meter = impact)
-		float distance = b2Distance(this->getBody()->GetPosition(), visiblePosition) - abs(rad) - 2;
-		if (distance <= 0)
-			distance += abs(distance);
-		//minimum distance returned is 1 meter . 0 meters will indicate a non existant entity
-		//in the brain input
-		distAngleArray[0] = distance+1;
-
-		//translation of the cartesian plane to the new point of origin of this organism
-		//newPos is the new position of the visible entity
-		b2Vec2 newPos;
-		newPos.x = this->getBody()->GetPosition().x - body->GetPosition().x;
-		newPos.y = this->getBody()->GetPosition().y - body->GetPosition().y;
-		//the organism's angle showing at 45 degrees at the point of its sight focus
-		float myAngle = this->getAngle() + 45 * 3.14 / 180;
-		//recalculating the position of the entity depending on the angle of our organism
-		b2Vec2 newPosAngle;
-		newPosAngle.x = newPos.x*cos(myAngle) + newPos.y*sin(myAngle);
-		newPosAngle.y = -(newPos.x)*sin(myAngle) + newPos.y*cos(myAngle);
-
-		float angle;
-		//calculation of the angle
-		angle = atan2(newPosAngle.y, newPosAngle.x) / 3.14 * 180;
-		//only 0-360 values
-		angle = (int(angle)+360) % 360;
-		//only 1-91 values in case the entity is on field of vision
-		if (visible == 'y') {
-			if (angle <= 0)
-				angle += abs(angle) + 1;
-			if (angle > 91)
-				angle -= angle - 89;
-		}
-		else {//in case of 0-360 make it 1-360
-			if (angle < 1)
-				angle += angle + 1;
-		}
 		
+			//myArray stores the distance and the angle in degrees
+			std::array<float, 2> distAngleArray = { 0,0 };
+			//position of the visible entity
+			b2Vec2 visiblePosition(body->GetPosition().x, body->GetPosition().y);
+			//radius of the entity
+			float rad = 0;
+			if (body->GetFixtureList()->GetShape()->GetType() == b2Shape::Type::e_polygon)//organism
+				rad = 2;
+			else
+				rad = body->GetFixtureList()->GetShape()->m_radius;
+			//distance calculation (1 meter = impact)
+			float distance = b2Distance(this->getBody()->GetPosition(), visiblePosition) - abs(rad) - 2;
+			if (distance <= 0)
+				distance += abs(distance);
+			//minimum distance returned is 1 meter . 0 meters will indicate a non existant entity
+			//in the brain input
+			distAngleArray[0] = distance + 1;
 
-		distAngleArray[1] = angle;
+			//translation of the cartesian plane to the new point of origin of this organism
+			//newPos is the new position of the visible entity
+			b2Vec2 newPos;
+			newPos.x = this->getBody()->GetPosition().x - body->GetPosition().x;
+			newPos.y = this->getBody()->GetPosition().y - body->GetPosition().y;
+			//the organism's angle showing at 45 degrees at the point of its sight focus
+			float myAngle = this->getAngle() + 45 * 3.14 / 180;
+			//recalculating the position of the entity depending on the angle of our organism
+			b2Vec2 newPosAngle;
+			newPosAngle.x = newPos.x*cos(myAngle) + newPos.y*sin(myAngle);
+			newPosAngle.y = -(newPos.x)*sin(myAngle) + newPos.y*cos(myAngle);
 
-		return distAngleArray;
+			float angle;
+			//calculation of the angle
+			angle = atan2(newPosAngle.y, newPosAngle.x) / 3.14 * 180;
+			//only 0-360 values
+			angle = (int(angle) + 360) % 360;
+			//only 1-91 values in case the entity is on field of vision
+			if (visible == 'y') {
+				if (angle <= 0)
+					angle += abs(angle) + 1;
+				if (angle > 91)
+					angle -= angle - 89;
+			}
+			else {//in case of 0-360 make it 1-360
+				if (angle < 1)
+					angle += angle + 1;
+			}
+
+
+			distAngleArray[1] = angle;
+
+			return distAngleArray;
+			
 	}
 
 	std::array<float, 2>Organism::getDistanceAndAnglePolygon(b2Body*& enemyBody)

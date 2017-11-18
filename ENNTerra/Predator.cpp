@@ -15,11 +15,11 @@ namespace ThGkatz
 	Predator::Predator() : Organism()
 	{}
 
-	Predator::Predator(b2World& world, sf::Vector2i position) : Organism(world, position)
+	Predator::Predator(b2World& world, sf::Vector2i position) : Organism(world, position, 28)
 	{
 		setSpeed(65);//this is the maximum speed a predator can achieve . ( 50 for gatherers , 60 for guardians)
 		setShape(createShape(position));
-		setNumberOfNeuralInputs(28);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture plus 2 for closestGatherer
+		//setNumberOfNeuralInputs(28);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture plus 2 for closestGatherer
 		setNeuralInputs(std::vector<float>(getNumberOfNeuralInputs(), 0));
 		setStimuli(std::vector<std::list< Stimulus* >>(7));
 	}
@@ -118,12 +118,15 @@ namespace ThGkatz
 		}
 		Stimulus* stim = new Stimulus;
 		std::array<float, 2> distAngleArrayGath = { 0,0 };
-		if (getClosestGatherer() == nullptr) {
+		Gatherer* myTempClosestGatherer = getClosestGatherer();
+		if (myTempClosestGatherer == nullptr) {
 			distAngleArrayGath = { 0,0 };
 		}
 		else {
-			b2Body* body = getClosestGatherer()->getBody();
-			distAngleArrayGath = getDistanceAndAngleCircle(body, 'n');
+			b2Body* body = myTempClosestGatherer->getBody();
+			if (myTempClosestGatherer->getDeadManWalking()) distAngleArrayGath = { 0,0 };
+			else
+				distAngleArrayGath = getDistanceAndAngleCircle(body, 'n');
 		}
 		stim->distance = distAngleArrayGath[0];
 		stim->angle = distAngleArrayGath[1];
@@ -132,6 +135,7 @@ namespace ThGkatz
 
 		//create the actual array of inputs for the neural net.
 		createNeuralInputs();
+		
 	}
 
 	void Predator::createNeuralInputs() {
@@ -154,6 +158,7 @@ namespace ThGkatz
 			tempAverage->angle = 0;
 			float totalDistance = 0;
 			float totalAngle = 0;
+		
 			for (it = myStimuli[i].begin(); it != myStimuli[i].end(); ++it) {
 				//find the closest of the list (add to neuralInputs temp vector)
 				if (it == myStimuli[i].begin()) {
@@ -191,7 +196,8 @@ namespace ThGkatz
 
 		//set the new NeauralInputs vector.
 		setNeuralInputs(myTempInputs);
-
+		//call the think function and move accordingly
+		think();
 	}
 
 }

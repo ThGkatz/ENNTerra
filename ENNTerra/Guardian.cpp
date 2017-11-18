@@ -16,11 +16,11 @@ namespace ThGkatz
 		roundSensor = b2FixtureDef();
 	}
 
-	Guardian::Guardian(b2World& world, sf::Vector2i position) : Organism(world, position)
+	Guardian::Guardian(b2World& world, sf::Vector2i position) : Organism(world, position , 27)
 	{
 		setSpeed(60);//this is the maximum speed a guardian can achieve . ( 50 for gatherers , 65 for predator)
 		setShape(createShape(position));
-		setNumberOfNeuralInputs(27);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture plus one for bool nearGatherer
+		//setNumberOfNeuralInputs(27);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture plus one for bool nearGatherer
 		setNeuralInputs(std::vector<float>(getNumberOfNeuralInputs(), 0));
 		setStimuli(std::vector<std::list< Stimulus* >>(7));
 		roundSensor = *createRoundSensor();
@@ -28,7 +28,9 @@ namespace ThGkatz
 		getBody()->CreateFixture(&roundSensor);
 	}
 
-	Guardian::~Guardian() {}
+	Guardian::~Guardian() {
+		
+	}
 
 	sf::ConvexShape* Guardian::createShape(sf::Vector2i position)
 	{
@@ -91,9 +93,13 @@ namespace ThGkatz
 		}
 	}
 	void Guardian::gathererLost(Entity* other) {
-		if (Gatherer* temp = dynamic_cast<Gatherer*>(other)) {
-			nearGatherers.erase(std::find(nearGatherers.begin(), nearGatherers.end(), other));
-		}
+		
+			if (Gatherer* temp = dynamic_cast<Gatherer*>(other)) {
+				if (this != NULL)
+					nearGatherers.erase(std::find(nearGatherers.begin(), nearGatherers.end(), other));
+			
+			}
+	
 	}
 
 	bool Guardian::isNearGatherers()
@@ -150,6 +156,7 @@ namespace ThGkatz
 			catch (...)
 			{
 				//if an exception is thrown it means a near gatherer has died . so just erase it from the vector
+				if (nearGatherers.size()>0)
 				nearGatherers.erase(nearGatherers.begin() + i);
 			}		
 		}
@@ -158,6 +165,7 @@ namespace ThGkatz
 
 	void Guardian::createBrainInput()
 	{
+		
 		emptyStimuli();
 		std::vector<Entity*> visibles = getVisibleEntities();
 		//for each visible entity
@@ -200,22 +208,30 @@ namespace ThGkatz
 		}
 		//now compute the distance and angle for all the gatherers near the guardian
 		std::vector<Entity*> nearGatherers = getNearGatherers();
+
 		for (short i = 0; i < nearGatherers.size(); i++) {
 			Stimulus* stim = new Stimulus;
 			std::array<float, 2> distAngleArray = { 0,0 };
-			Organism* temp = dynamic_cast<Organism*>(nearGatherers[i]);
-			b2Body* body = temp->getBody();
-			distAngleArray = getDistanceAndAngleCircle(body, 'y');
-			stim->distance = distAngleArray[0];
-			stim->angle = distAngleArray[1];
-			stim->type = EntityTypes::NEARGATHERER;
-			addStimulus(stim);
+			try {
+				Organism* temp = dynamic_cast<Organism*>(nearGatherers[i]);
+				b2Body* body = temp->getBody();
+				distAngleArray = getDistanceAndAngleCircle(body, 'y');
+				stim->distance = distAngleArray[0];
+				stim->angle = distAngleArray[1];
+				stim->type = EntityTypes::NEARGATHERER;
+				addStimulus(stim);
+			}
+			catch (...) {
+				continue;
+			}
+			
 		}
 		//create the actual array of inputs for the neural net.
 		createNeuralInputs();
 	}
 
 	void Guardian::createNeuralInputs() {
+	
 		getNeuralInputs().clear();
 		//temp vector for the neuralInputs
 		std::vector<float> myTempInputs(getNumberOfNeuralInputs(), 0);
@@ -265,7 +281,8 @@ namespace ThGkatz
 
 		//set the new NeauralInputs vector.
 		setNeuralInputs(myTempInputs);
-
+		//call the think function and move accordingly
+		think();
 	}
 
 }

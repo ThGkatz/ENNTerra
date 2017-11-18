@@ -3,6 +3,7 @@
 #include"SFML\Graphics.hpp"
 #include"Entity.h"
 #include "Stimulus.h"
+#include "NeuralNetWrapper.h"
 #include <vector>
 #include <list>
 
@@ -20,8 +21,8 @@ namespace ThGkatz
 		virtual void checkCollision(Entity*) = 0;
 		//deconstructor
 		virtual ~Organism();
-		//
-		void move(bool , bool , bool);
+		
+		
 		//updates the position and the angle of the body . Also handles the depletion rates 
 		//of energy and moisture using the deathClock property .
 		virtual void update();
@@ -78,6 +79,7 @@ namespace ThGkatz
 		std::vector<std::list<Stimulus*>> stimuli;
 		std::vector<float> neuralInputs;
 		int numberOfNeuralInputs;
+		NeuralNetWrapper* brain;
 
 
 	private:
@@ -91,14 +93,16 @@ namespace ThGkatz
 		//and two with the distance and angle of the average for the specific entity type.
 		//In addition, more neurons are created depending on the organism type, like energy and moisture.
 		virtual void createNeuralInputs() = 0;
-
+		
+		//
+		void move(fann_type*);
 		
 
 
 	protected:
 		//default constructor
 		Organism() ;
-		Organism(b2World& , sf::Vector2i);
+		Organism(b2World& , sf::Vector2i, int);
 		//the organism drinks water from a River , replenishing his moisture level ;
 		void drink();
 		//the organism replenishes his energy level . the way depends on the organism
@@ -124,6 +128,9 @@ namespace ThGkatz
 		Returns a b2Vec2 point 
 		*/
 		b2Vec2 getClosestPoint(b2Vec2*);
+		//
+		void think();
+		
 
 		
 	};

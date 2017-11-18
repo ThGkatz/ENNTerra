@@ -94,7 +94,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)\lib;$(SolutionDir)\fann\bin\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\lib;$(SolutionDir)\fann\bin\Win32</AdditionalLibraryDirectories>
       <AdditionalDependencies>Box2D.lib;sfml-audio-d.lib;sfml-graphics-d.lib;sfml-window-d.lib;sfml-system-d.lib;fannfloat.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -154,6 +154,7 @@
     <ClCompile Include="Guardian.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyContactListener.cpp" />
+    <ClCompile Include="NeuralNetWrapper.cpp" />
     <ClCompile Include="Obstacle.cpp" />
     <ClCompile Include="Organism.cpp" />
     <ClCompile Include="Predator.cpp" />
@@ -166,6 +167,7 @@
     <ClInclude Include="Gatherer.h" />
     <ClInclude Include="Guardian.h" />
     <ClInclude Include="MyContactListener.h" />
+    <ClInclude Include="NeuralNetWrapper.h" />
     <ClInclude Include="Obstacle.h" />
     <ClInclude Include="Organism.h" />
     <ClInclude Include="Predator.h" />
