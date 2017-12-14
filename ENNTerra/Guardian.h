@@ -22,8 +22,6 @@ namespace ThGkatz
 		~Guardian();
 		//checks the exact type of the collided Entity and proceeds accordingly 
 		void checkCollision(Entity*);
-		//while being near a gatherer , replenish one point of energy per second
-		void feed();
 		//adds a gatherer to the vector of them being near the guardian
 		void gathererEnter(Entity*);
 		//after a collision has ended with the roundSensor and a gatherer 

@@ -30,7 +30,10 @@ namespace ThGkatz
 		energy = 0;
 		moisture = 0;
 		deadManWalking = false;
-
+		deathClock = sf::Clock();
+		lostEnergy = false;
+		myNeuralWeightsLength = 0;
+		myNeuralWeights = new fann_connection();
 	}
 
 	Organism::Organism(b2World& world, sf::Vector2i position, int numberOfNeuralInputs)
@@ -40,7 +43,7 @@ namespace ThGkatz
 		moisture = 10;
 		deadManWalking = false;
 		deathClock = sf::Clock();
-
+		lostEnergy = false;
 		bodyDef.type = b2_dynamicBody;
 		bodyDef.position.Set(position.x, position.y);
 		body = world.CreateBody(&bodyDef);
@@ -70,8 +73,10 @@ namespace ThGkatz
 		body->SetUserData(this);
 		shape = nullptr;
 		setNumberOfNeuralInputs(numberOfNeuralInputs);
-		//create an instance of neural network with 1 hidden layer and 3 output neurons
-		brain = new NeuralNetWrapper(getNumberOfNeuralInputs(), 3 , 3);
+		//create an instance of neural network with 1 hidden layer and 2 output neurons
+		brain = new NeuralNetWrapper(getNumberOfNeuralInputs(), 2 , 3);
+		myNeuralWeightsLength = brain->getWeightsLength();
+		myNeuralWeights = new fann_connection[myNeuralWeightsLength];
 	}
 
 	Organism::~Organism()
@@ -175,6 +180,18 @@ namespace ThGkatz
 	const int Organism::getNumberOfNeuralInputs() {
 		return numberOfNeuralInputs;
 	}
+
+	const bool Organism::getLostEnergy() {
+		return lostEnergy;
+	}
+
+	const unsigned int Organism::getNeuralWeightsLength() const {
+		return (brain->getWeightsLength());
+	}
+
+	void Organism::getNeuralWeights(fann_connection* myConnection) {
+		brain->getWeights(myConnection);
+	}
 	//setter methods
 	void Organism::setTexture(sf::Texture* anotherTexture)
 	{
@@ -215,8 +232,16 @@ namespace ThGkatz
 		numberOfNeuralInputs = number;
 	}
 
+	void Organism::setLostEnergy(bool fed) {
+		lostEnergy = fed;
+	}
+
 	void Organism::setStimuli(std::vector<std::list<Stimulus*>> myStimuli) {
 		stimuli = myStimuli;
+	}
+
+	void Organism::setNeuralWeights(fann_connection* myConnection) {
+		brain->setWeights(myConnection);
 	}
 
 	void Organism::addStimulus(Stimulus* stim) {
@@ -247,12 +272,13 @@ namespace ThGkatz
 		shape->setPosition(body->GetPosition().x*RATIO, body->GetPosition().y*RATIO);
 		
 		//every 2 seconds the organism  loses a point of moisture and energy 
-		if ((int)deathClock.getElapsedTime().asSeconds() >= 2)
+		if ((int)deathClock.getElapsedTime().asSeconds() % 2==0&&!lostEnergy)
 		{
 			moisture--;
 			energy--;
-			deathClock.restart();
+			lostEnergy = true;
 		}
+		else if ((int)deathClock.getElapsedTime().asSeconds() % 2 != 0) lostEnergy = false;
 
 		if (moisture <= 0 || energy <= 0)
 			setDeadManWalking(true);//the organism has died and is waiting for termination 
@@ -264,9 +290,10 @@ namespace ThGkatz
 	void Organism::move(fann_type* outputs)
 	{
 		float desiredSpeed = outputs[1];
-		float desiredLeft = outputs[0];
-		float desiredRight = outputs[2];
-
+		float desiredTorque = outputs[0];
+		
+		//std::cout << "Speed: " << desiredSpeed << " Torque : " << desiredTorque << std::endl;
+		
 		//this is the angle in RADS returned by the body property .
 		//we change it in DEEGREES to make sense .
 		float angle = body->GetAngle() / 3.14 * 180;
@@ -279,10 +306,7 @@ namespace ThGkatz
 		m_x = speed*cosf(angle*3.14 / 180 - 90 * 3.14 / 180);
 		m_y = speed*sinf(angle*3.14 / 180 - 90 * 3.14 / 180);
 
-		
-			getBody()->ApplyTorque(-10*desiredLeft, true);
-
-			getBody()->ApplyTorque(10*desiredRight, true);
+			getBody()->ApplyTorque(10* desiredTorque, true);
 		
 			getBody()->ApplyForce(b2Vec2(m_x, m_y), getBody()->GetWorldCenter(), true);
 		
@@ -301,9 +325,12 @@ namespace ThGkatz
 		moisture = 30;
 	}
 
-	void Organism::feed()
+	void Organism::feed(int newEnergy)
 	{
-		energy = 10;
+		if (newEnergy + energy > 10)
+			energy = 10;
+		else
+			energy += newEnergy;
 	}
 
 	b2FixtureDef* Organism::createSensor()
@@ -362,53 +389,54 @@ namespace ThGkatz
 			//myArray stores the distance and the angle in degrees
 			std::array<float, 2> distAngleArray = { 0,0 };
 			//position of the visible entity
-			b2Vec2 visiblePosition(body->GetPosition().x, body->GetPosition().y);
-			//radius of the entity
-			float rad = 0;
-			if (body->GetFixtureList()->GetShape()->GetType() == b2Shape::Type::e_polygon)//organism
-				rad = 2;
-			else
-				rad = body->GetFixtureList()->GetShape()->m_radius;
-			//distance calculation (1 meter = impact)
-			float distance = b2Distance(this->getBody()->GetPosition(), visiblePosition) - abs(rad) - 2;
-			if (distance <= 0)
-				distance += abs(distance);
-			//minimum distance returned is 1 meter . 0 meters will indicate a non existant entity
-			//in the brain input
-			distAngleArray[0] = distance + 1;
+			if (body != NULL&&body != nullptr&&!getDeadManWalking()) {
+				b2Vec2 visiblePosition(body->GetPosition().x, body->GetPosition().y);
+				//radius of the entity
+				float rad = 0;
+				if (body->GetFixtureList()->GetShape()->GetType() == b2Shape::Type::e_polygon)//organism
+					rad = 2;
+				else
+					rad = body->GetFixtureList()->GetShape()->m_radius;
+				//distance calculation (1 meter = impact)
+				float distance = b2Distance(this->getBody()->GetPosition(), visiblePosition) - abs(rad) - 2;
+				if (distance <= 0)
+					distance += abs(distance);
+				//minimum distance returned is 1 meter . 0 meters will indicate a non existant entity
+				//in the brain input
+				distAngleArray[0] = distance + 1;
 
-			//translation of the cartesian plane to the new point of origin of this organism
-			//newPos is the new position of the visible entity
-			b2Vec2 newPos;
-			newPos.x = this->getBody()->GetPosition().x - body->GetPosition().x;
-			newPos.y = this->getBody()->GetPosition().y - body->GetPosition().y;
-			//the organism's angle showing at 45 degrees at the point of its sight focus
-			float myAngle = this->getAngle() + 45 * 3.14 / 180;
-			//recalculating the position of the entity depending on the angle of our organism
-			b2Vec2 newPosAngle;
-			newPosAngle.x = newPos.x*cos(myAngle) + newPos.y*sin(myAngle);
-			newPosAngle.y = -(newPos.x)*sin(myAngle) + newPos.y*cos(myAngle);
+				//translation of the cartesian plane to the new point of origin of this organism
+				//newPos is the new position of the visible entity
+				b2Vec2 newPos;
+				newPos.x = this->getBody()->GetPosition().x - body->GetPosition().x;
+				newPos.y = this->getBody()->GetPosition().y - body->GetPosition().y;
+				//the organism's angle showing at 45 degrees at the point of its sight focus
+				float myAngle = this->getAngle() + 45 * 3.14 / 180;
+				//recalculating the position of the entity depending on the angle of our organism
+				b2Vec2 newPosAngle;
+				newPosAngle.x = newPos.x*cos(myAngle) + newPos.y*sin(myAngle);
+				newPosAngle.y = -(newPos.x)*sin(myAngle) + newPos.y*cos(myAngle);
 
-			float angle;
-			//calculation of the angle
-			angle = atan2(newPosAngle.y, newPosAngle.x) / 3.14 * 180;
-			//only 0-360 values
-			angle = (int(angle) + 360) % 360;
-			//only 1-91 values in case the entity is on field of vision
-			if (visible == 'y') {
-				if (angle <= 0)
-					angle += abs(angle) + 1;
-				if (angle > 91)
-					angle -= angle - 89;
-			}
-			else {//in case of 0-360 make it 1-360
-				if (angle < 1)
-					angle += angle + 1;
-			}
+				float angle;
+				//calculation of the angle
+				angle = atan2(newPosAngle.y, newPosAngle.x) / 3.14 * 180;
+				//only 0-360 values
+				angle = (int(angle) + 360) % 360;
+				//only 1-91 values in case the entity is on field of vision
+				if (visible == 'y') {
+					if (angle <= 0)
+						angle += abs(angle) + 1;
+					if (angle > 91)
+						angle -= angle - 89;
+				}
+				else {//in case of 0-360 make it 1-360
+					if (angle < 1)
+						angle += angle + 1;
+				}
 
 
-			distAngleArray[1] = angle;
-
+				distAngleArray[1] = angle;
+			}			
 			return distAngleArray;
 			
 	}

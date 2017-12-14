@@ -26,8 +26,8 @@ namespace ThGkatz {
 		//the neural net is created
 		net.create_standard_array(numOfLayers , neuronsPerLayer);
 
-		net.set_activation_function_hidden(FANN::SIGMOID_SYMMETRIC_STEPWISE);
-		net.set_activation_function_output(FANN::SIGMOID_SYMMETRIC_STEPWISE);
+		net.set_activation_function_hidden(FANN::ELLIOT_SYMMETRIC);
+		net.set_activation_function_output(FANN::ELLIOT_SYMMETRIC);
 		net.set_activation_steepness_hidden(1.0);
 		net.set_activation_steepness_output(1.0);
 	}
@@ -48,6 +48,15 @@ namespace ThGkatz {
 		return num_of_outputs;
 	}
 
+	void NeuralNetWrapper::getWeights(fann_connection* myConnection) {
+		net.get_connection_array(myConnection);
+	}
+
+	const unsigned int NeuralNetWrapper::getWeightsLength()const {
+		
+		return (static_cast<FANN::neural_net>(net).get_total_connections());
+	}
+
 	void NeuralNetWrapper::setNumOfInputs(unsigned int numberOfInputs) {
 		num_of_inputs = numberOfInputs;
 	}
@@ -58,6 +67,11 @@ namespace ThGkatz {
 
 	void NeuralNetWrapper::setNumOfOutputs(unsigned int numberOOutputs) {
 		num_of_outputs = numberOOutputs;
+	}
+
+	void NeuralNetWrapper::setWeights(fann_connection* myConnection) {
+		unsigned int numberOfConnections = net.get_total_connections();
+		net.set_weight_array(myConnection, numberOfConnections);
 	}
 
 	fann_type* NeuralNetWrapper::run(fann_type* inputArray) {

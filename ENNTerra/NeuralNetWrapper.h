@@ -19,10 +19,13 @@ namespace ThGkatz
 		void setNumOfInputs(unsigned int);
 		void setNumOfLayers(unsigned int);
 		void setNumOfOutputs(unsigned int);
+		void setWeights(fann_connection*);
 		//getters
 		const unsigned int getNumberOfInputs() const ;
 		const unsigned int getNumberOfLayers() const ;
 		const unsigned int getNumberOfOutputs() const ;
+		void getWeights(fann_connection*);
+		const unsigned int getWeightsLength() const;
 	private:
 		FANN::neural_net net;
 		unsigned int num_of_inputs;

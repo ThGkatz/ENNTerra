@@ -8,6 +8,7 @@
 #include "Guardian.h"
 #include "RatioVar.h"
 #include "Stimulus.h"
+#include "GlobalVariables.h"
 #include <iostream>
 #include<cmath>
 #include <array>
@@ -25,7 +26,7 @@ namespace ThGkatz
 
 	Gatherer::Gatherer(b2World& world, sf::Vector2i position) : Organism(world, position, 26)
 	{
-		setSpeed(50);//this is the maximum speed a gatherer can achieve . ( 65 for predators , 60 for guardians)
+		setSpeed(40);//this is the maximum speed a gatherer can achieve . ( 65 for predators , 60 for guardians)
 		setShape(createShape(position));
 		//setNumberOfNeuralInputs(26);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture
 		setNeuralInputs(std::vector<float>(getNumberOfNeuralInputs(), 0)); 
@@ -66,16 +67,24 @@ namespace ThGkatz
 		{
 			if (getEnergy() <= 6) {
 				if (other->giveFood())
-					feed();
+					feed(GATHERER_FOOD_BUSH);
 			}
-			
 		}
 		else if (River* other = dynamic_cast<River*>(otherEntity))
 		{
 			drink();
-		}
-		else if (Predator* other = dynamic_cast<Predator*>(otherEntity))
-			setDeadManWalking(true);
+		}			
+		else if (Guardian* other = dynamic_cast<Guardian*>(otherEntity)) {
+			int myRandomNumber = rand() % 100 + 1;
+			if (myRandomNumber < GATHERER_TO_GUARDIAN) {
+				feed(GATHERER_FOOD_GUARDIAN);
+				other->setDeadManWalking(true);
+			}
+			else {
+				setDeadManWalking(true);
+				other->feed(GUARDIAN_FOOD_GATHERER);
+			}
+		}			
 	}
 	
 	void Gatherer::createBrainInput()

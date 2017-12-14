@@ -12,6 +12,9 @@
 #include "Guardian.h"
 #include "Organism.h"
 #include "Stimulus.h"
+#include "ga/GASimpleGA.h"	// we're going to use the simple GA
+#include "ga/GA2DBinStrGenome.h" // and the 2D binary string genome
+#include "ga/std_stream.h"
 #include<iostream>
 #include<string>
 #include<vector>
@@ -20,6 +23,7 @@
 #include<cmath>
 #include<cstdlib>
 #include<time.h>
+#include <stdio.h>
 
 
 
@@ -44,7 +48,9 @@ using ThGkatz::Stimulus;
  float width = 0.04*height ;//4% of height
  int X_AXIS = 1000;//height of world in pixels
  int Y_AXIS =X_AXIS;//width of world in pixels
- 
+ //the user can play with these
+ int numberOfRocks, numberOfBushes, numberOfGatherers, numberOfGuardians, numberOfPredators;
+
  MyContactListener contactListener;
 
  typedef sf::Sprite* spritePointer;
@@ -60,6 +66,8 @@ a net around the world .
 author : ThGkatz*/
 std::vector<std::unique_ptr<River>> createRivers(b2World&);
 
+float Objective(GAGenome &);	// This is the declaration of our obj function.
+								// The definition comes later in the file.
 /*prerequisites : world is initiated , height and width variables are as well . In case the user 
 doesn't know how many obstacles to build the method chooces for itself . default values are 
 number of Rock objects = height / 10 (integer value)
@@ -103,13 +111,41 @@ void setClosestGathererOfPredator(std::vector<Organism*>);
 
 int main()
 {
+	int width1 = 10;
+	int height1 = 5;
+	int popsize = 30;
+	int ngen = 400;
+	float pmut = 0.001;
+	float pcross = 0.9;
+
+	// Now create the GA and run it.  First we create a genome of the type that
+	// we want to use in the GA.  The ga doesn't operate on this genome in the
+	// optimization - it just uses it to clone a population of genomes.
+
+	GA2DBinaryStringGenome genome(width1, height1, Objective);
+
+	// Now that we have the genome, we create the genetic algorithm and set
+	// its parameters - number of generations, mutation probability, and crossover
+	// probability.  And finally we tell it to evolve itself.
+
+	GASimpleGA ga(genome);
+	ga.populationSize(popsize);
+	ga.nGenerations(ngen);
+	ga.pMutation(pmut);
+	ga.pCrossover(pcross);
+	ga.evolve();
+
+	// Now we print out the best genome that the GA found.
+
+	std::cout << "The GA found:\n" << ga.statistics().bestIndividual() << "\n";
+	
+
+
 	//initialisation of the global singleton variable RATIO
 	RatioVar::instance()->setRATIO(X_AXIS / height);
 	float RATIO = RatioVar::instance()->getRATIO();
 	
-	//the user can play with these
-	int numberOfRocks, numberOfBushes, numberOfGatherers, numberOfGuardians, numberOfPredators;
-
+	
 
 
 	sf::RenderWindow myWindow(sf::VideoMode(X_AXIS, Y_AXIS), "ENNTerra", sf::Style::Default);//creation of the window
@@ -151,18 +187,7 @@ int main()
 
 	sf::Clock myTextureClock;
 	//creation of the organisms
-	std::vector<Organism*> organisms = organismFactory(world, obstacles, 10);
-	std::cout << organisms.size();
-	
-	float timestep = 1 / 60.0f;
-
-	//let's test the viewer
-	/*sf::Vector2f myCameraCenter;
-	myCameraCenter.x = triangle->getShape()->getPosition().x;
-	myCameraCenter.y = triangle->getShape()->getPosition().y;
-	sf::View camera(myCameraCenter, sf::Vector2f(500, 500));*/
-	
-	//myWindow.setView(camera);
+	std::vector<Organism*> organisms = organismFactory(world, obstacles, 5);
 	/*sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
 	Guardian* testPre = new Guardian(world, position);
 	organisms.push_back(testPre);
@@ -172,10 +197,22 @@ int main()
 	sf::Vector2i position3 = findCoordinates(organisms, obstacles, 2);
 	Gatherer* testGath2 = new Gatherer(world, position3);
 	organisms.push_back(testGath2);*/
+
+
+	float timestep =1/ 60.0f;
+	
+	//let's test the viewer
+	/*sf::Vector2f myCameraCenter;
+	myCameraCenter.x = triangle->getShape()->getPosition().x;
+	myCameraCenter.y = triangle->getShape()->getPosition().y;
+	sf::View camera(myCameraCenter, sf::Vector2f(500, 500));*/
+	//myWindow.setView(camera);
+
+	//variable needed for refilling the bushes' energy (food) . Nothing to see here.
+	bool bushRefilled = false;
+	
 	while (myWindow.isOpen())//main loop
 	{
-		//call the step function of box2d which handles all the physical computing
-		world.Step(timestep, 8, 6);
 		sf::Event event;
 		while (myWindow.pollEvent(event))
 		{
@@ -188,87 +225,144 @@ int main()
 
 				myText = createText();//call of createText() with the new parameters of the world
 			}
-			
-		}
 
+		}
+		//get the seconds ellapsed till this instance of the loop.
+		int secondsOfCurrentIteration = static_cast<int>(myTextureClock.getElapsedTime().asSeconds());
+		//box2d Step function that does all the physics computations.
+		world.Step(timestep, 8, 6);
+		
 		//in every loop instance follow a clear-draw-display cycle
 		myWindow.clear(sf::Color::Black);
-
 		//draws the ground 
 		myWindow.draw(*backGroundPointer);
 
 		//depending on the clock , river texture changes for animation purposes
 		for (unsigned int i = 0; i < rivers.size(); i++)
 		{
-			if ((static_cast<int>(myTextureClock.getElapsedTime().asSeconds()) % 2) ==0)
-			{				
+			if ((secondsOfCurrentIteration % 2) == 0)
+			{
 				rivers[i]->shape.setTexture(&waterTexture1);
-				
 			}
 			else
-			{				
-				rivers[i]->shape.setTexture(&waterTexture2);	
+			{
+				rivers[i]->shape.setTexture(&waterTexture2);
 			}
 			//draw the rivers	
 			myWindow.draw(rivers[i]->shape);
 		}//end-for
-	
-		
-		if (myTextureClock.getElapsedTime().asSeconds() >= 10)
-		{
-			//restarting the clock every 10 seconds
-			myTextureClock.restart();
-			//refilling the bushes with 1 point of food
-			for (unsigned int i = 0; i < obstacles.size(); i++)
-			{	
-				//checking if the obstacle is actually a bush type
-				if (typeid(*obstacles[i]) == typeid(ThGkatz::Bush))
-					dynamic_cast<Bush*>(obstacles[i])->updateFood();
-			}
-		}
-			
-		
-		//draws the text of the world prameters
-		myWindow.draw(*myText);
-	
-		for (unsigned int i = 0; i < organisms.size(); i++)
-		{			
-				
-				//update all the organisms 
-				if (organisms[i] != NULL&&organisms[i] != nullptr) {
-					
-					if (!organisms[i]->getDeadManWalking()) {
-						
-
-						organisms[i]->update();
-						
-						//and draw them
-						myWindow.draw(*organisms[i]->getShape());
-					}
-					//check if some died
-					else
-					{
-						
-						//if an organism has died we delete it calling the deconstructors 
-						//and then erase it from the vector
-						Organism* temp = organisms[i];
-						
-						organisms.erase(organisms.begin() + i);
-						
-						delete temp;
-						temp = NULL;
-						
-					}
-				}	
-		}
-		//get the closest gatherer for each predator .
-		setClosestGathererOfPredator(organisms);
-		//draw the obstacles
+		 //draw the obstacles
 		for (unsigned int i = 0; i < obstacles.size(); i++)
 		{
 			myWindow.draw(*obstacles[i]->getShape());
 		}
+		//every 10 seconds refill the bushes with food
+		if (secondsOfCurrentIteration % 10 == 0 && !bushRefilled)
+		{
 		
+			//refilling the bushes with 1 point of food
+			for (unsigned int i = 0; i < obstacles.size(); i++)
+			{
+				//checking if the obstacle is actually a bush type
+				if (typeid(*obstacles[i]) == typeid(ThGkatz::Bush))
+					dynamic_cast<Bush*>(obstacles[i])->updateFood();
+			}
+			bushRefilled = true;
+		}
+		else if (secondsOfCurrentIteration % 10 != 0) bushRefilled = false;
+		for (unsigned int i = 0; i < organisms.size(); i++)
+		{
+			//update all the organisms
+			if (organisms[i] != NULL&&organisms[i] != nullptr) {
+				if (!organisms[i]->getDeadManWalking()) {
+					organisms[i]->update();
+					//and draw them
+					myWindow.draw(*organisms[i]->getShape());
+				}
+				//check if some died
+				else
+				{
+					//if an organism has died we delete it calling the deconstructors
+					//and then erase it from the vector
+					Organism* temp = organisms[i];
+					//for testing reasons. Get the maximum Lifetime of current generation for each Organism type.
+					if (Predator* myPre = dynamic_cast<Predator*>(temp)) {
+						int max = 0;
+						Predator* bestPredator = nullptr;
+						for (unsigned int j = 0; j < organisms.size(); j++) {
+							if (Predator* test = dynamic_cast<Predator*>(organisms[j])) {
+								if (organisms[j]->getClock()->getElapsedTime().asSeconds() > max) {
+									max = organisms[i]->getClock()->getElapsedTime().asSeconds();
+									bestPredator = dynamic_cast<Predator*>(organisms[j]);
+								}
+							}
+						}
+						assert(bestPredator != nullptr&&bestPredator != NULL);
+						unsigned int arrayLength = bestPredator->getNeuralWeightsLength();
+						fann_connection* testConnection = new fann_connection[arrayLength];
+						bestPredator->getNeuralWeights(testConnection);						
+						//std::cout << "Best Predator Alive Time: " << max << std::endl;
+						sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
+						Predator* test1 = new Predator(world, position);
+						test1->setNeuralWeights(testConnection);
+						organisms.push_back(test1);
+					}
+					else if (Guardian* myGuard = dynamic_cast<Guardian*>(temp)) {
+						int max = 0;
+						Guardian* bestGuardian = nullptr;
+						for (unsigned int j = 0; j < organisms.size(); j++) {
+							if (Guardian* test = dynamic_cast<Guardian*>(organisms[j])) {
+								if (organisms[j]->getClock()->getElapsedTime().asSeconds() > max) {
+									max = organisms[i]->getClock()->getElapsedTime().asSeconds();
+									bestGuardian = dynamic_cast<Guardian*>(organisms[j]);
+								}
+							}
+						}		
+						assert(bestGuardian != nullptr&&bestGuardian != NULL);
+						unsigned int arrayLength = bestGuardian->getNeuralWeightsLength();
+						fann_connection* testConnection = new fann_connection[arrayLength];
+						bestGuardian->getNeuralWeights(testConnection);
+						//std::cout << "Best Guardian Alive Time: " << max << std::endl;
+						sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
+						Guardian* test1 = new Guardian(world, position);
+						test1->setNeuralWeights(testConnection);
+						organisms.push_back(test1);
+					}
+					else if (Gatherer* myGath = dynamic_cast<Gatherer*>(temp)) {
+						int max = 0;
+						Gatherer* bestGatherer= nullptr;
+						for (unsigned int j = 0; j < organisms.size(); j++) {
+							if (Gatherer* test = dynamic_cast<Gatherer*>(organisms[j])) {
+								if (organisms[j]->getClock()->getElapsedTime().asSeconds() > max) {
+									max = organisms[i]->getClock()->getElapsedTime().asSeconds();
+									bestGatherer = dynamic_cast<Gatherer*>(organisms[j]);
+								}
+							}							
+						}
+						assert(bestGatherer != nullptr&&bestGatherer != NULL);
+						unsigned int arrayLength = bestGatherer->getNeuralWeightsLength();
+						fann_connection* testConnection = new fann_connection[arrayLength];
+						bestGatherer->getNeuralWeights(testConnection);
+						//std::cout << "Best Gatherer Alive Time: " << max << std::endl;
+						sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
+						Gatherer* test1 = new Gatherer(world, position);
+						test1->setNeuralWeights(testConnection);
+						organisms.push_back(test1);
+					}
+					//completely delete this organism.
+					organisms.erase(organisms.begin() + i);
+					delete temp;
+					temp = NULL;
+
+
+				}
+			}
+		}
+		//get the closest gatherer for each predator .
+		setClosestGathererOfPredator(organisms);
+		
+		//draws the text of the world prameters
+		myWindow.draw(*myText);
 		myWindow.display();
 	}//while window.isOpen
 	
@@ -278,6 +372,17 @@ int main()
 			std::cout << "-------------"<< i << "-------------" << std::endl;
 			std::cout << myTest[i] << std::endl;
 	}*/
+	int max = 0;
+	Organism* bestGuardian = nullptr;
+	for (unsigned int j = 0; j < organisms.size(); j++) {
+		
+			if (organisms[j]->getClock()->getElapsedTime().asSeconds() > max) {
+				max = organisms[j]->getClock()->getElapsedTime().asSeconds();
+				bestGuardian = dynamic_cast<Organism*>(organisms[j]);
+			}	
+	}
+	std::cout << "Best Living Organism so far." << std::endl;
+	std::cout << "Time : " << bestGuardian->getClock()->getElapsedTime().asSeconds() << std::endl;
 	std::cout << "Press ENTER to continue...";
 	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 	return 0;
@@ -654,5 +759,23 @@ void setClosestGathererOfPredator(std::vector<Organism*> organisms)
 			tempPredator->setClosestGatherer(closestGatherer);
 		}
 	}
+}
+
+
+float
+Objective(GAGenome& g) {
+	GA2DBinaryStringGenome & genome = (GA2DBinaryStringGenome &)g;
+	float score = 0.0;
+	int count = 0;
+	for (int i = 0; i<genome.width(); i++) {
+		for (int j = 0; j<genome.height(); j++) {
+			if (genome.gene(i, j) == 0 && count % 2 == 0)
+				score += 1.0;
+			if (genome.gene(i, j) == 1 && count % 2 != 0)
+				score += 1.0;
+			count++;
+		}
+	}
+	return score;
 }
 

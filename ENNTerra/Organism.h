@@ -32,6 +32,8 @@ namespace ThGkatz
 		void lostVisual(Entity*);
 		void addStimulus(Stimulus*);
 		void emptyStimuli();
+		//the organism replenishes his energy level . the way depends on the organism
+		virtual void feed(int);
 		//getter methods
 		const float getAngle() const;
 		b2Body* getBody() const;
@@ -45,12 +47,15 @@ namespace ThGkatz
 		const int getEnergy() const;
 		const int getMoisture() const;
 		const bool getDeadManWalking() const;
+		const unsigned int getNeuralWeightsLength() const;
+		void getNeuralWeights(fann_connection*);
 		sf::Clock* getClock() ;
 		//returns a vector with all the visible objects in the field of vision of this organism
 		const std::vector<Entity*> getVisibleEntities() const;
 		const std::vector<std::list<Stimulus*>> getStimuli() const;
 		std::vector<float> getNeuralInputs();
 		const int getNumberOfNeuralInputs();
+		const bool getLostEnergy();
 		//setters
 		void setTexture(sf::Texture*);
 		void setShape(sf::ConvexShape*);
@@ -61,6 +66,8 @@ namespace ThGkatz
 		void setNeuralInputs(std::vector<float>);
 		void setNumberOfNeuralInputs(int);
 		void setStimuli(std::vector<std::list<Stimulus*>>);
+		void setLostEnergy(bool);
+		void setNeuralWeights(fann_connection*);
 
 	private:
 		b2Body* body;
@@ -75,12 +82,14 @@ namespace ThGkatz
 		float maxSpeed;//indicates the maximum power of thrust an organism can achieve
 		int energy;//gets depleted with time , refilling depends on the organism type
 		int moisture;//gets depleted with time , refills at rivers
-		sf::Clock deathClock;//every 2 seconds the organism loses 1 point of energy and moisture . 
+		sf::Clock deathClock;//Total number of seconds this organism is alive . 
 		std::vector<std::list<Stimulus*>> stimuli;
 		std::vector<float> neuralInputs;
 		int numberOfNeuralInputs;
 		NeuralNetWrapper* brain;
-
+		bool lostEnergy = false;
+		fann_connection* myNeuralWeights;
+		unsigned int myNeuralWeightsLength;
 
 	private:
 		//creates and returns the virtual repressentation of the organism as an sf::ConvexShape (triangle)
@@ -105,8 +114,6 @@ namespace ThGkatz
 		Organism(b2World& , sf::Vector2i, int);
 		//the organism drinks water from a River , replenishing his moisture level ;
 		void drink();
-		//the organism replenishes his energy level . the way depends on the organism
-		virtual void feed();
 		//just restarts the Deathclock property 
 		void restartClock();
 		//fill the stimuli vector of lists with each of the entities the organism senses

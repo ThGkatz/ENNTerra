@@ -5,6 +5,7 @@
 #include "River.h"
 #include "RatioVar.h"
 #include "Stimulus.h"
+#include "GlobalVariables.h"
 #include <iostream>
 #include <array>
 #include <list>
@@ -18,7 +19,7 @@ namespace ThGkatz
 
 	Guardian::Guardian(b2World& world, sf::Vector2i position) : Organism(world, position , 27)
 	{
-		setSpeed(60);//this is the maximum speed a guardian can achieve . ( 50 for gatherers , 65 for predator)
+		setSpeed(45);//this is the maximum speed a guardian can achieve . ( 50 for gatherers , 65 for predator)
 		setShape(createShape(position));
 		//setNumberOfNeuralInputs(27);//4 inputs for each entity type (plus river) (24) and 2 more for energy , moisture plus one for bool nearGatherer
 		setNeuralInputs(std::vector<float>(getNumberOfNeuralInputs(), 0));
@@ -63,14 +64,18 @@ namespace ThGkatz
 	{
 		if (River* temp = dynamic_cast<River*>(otherEntity))
 			drink();
+		else if (Predator* other = dynamic_cast<Predator*>(otherEntity)) {
+			int myRandomNumber = rand() % 100 + 1;
+			if (myRandomNumber > GUARDIAN_TO_PREDATOR) {
+				setDeadManWalking(true);
+				other->feed(PREDATOR_FOOD_GUARDIAN);
+			}
+			else {
+				feed(GUARDIAN_FOOD_PREDATOR);
+				other->setDeadManWalking(true);
+			}
+		}
 		
-	}
-
-	void Guardian::feed()
-	{
-		if (getEnergy() < 10)
-			setEnergy(getEnergy()+1);
-
 	}
 
 	b2FixtureDef* Guardian::createRoundSensor()
@@ -127,26 +132,26 @@ namespace ThGkatz
 		getShape()->setRotation(angle);
 		getShape()->setPosition(getBody()->GetPosition().x*RATIO, getBody()->GetPosition().y*RATIO);
 
-		if ((int)getClock()->getElapsedTime().asSeconds() >= 2)
+		if ((int)getClock()->getElapsedTime().asSeconds()%2==0&&!getLostEnergy())
 		{
 			//if a guardian is near one or more gatherers he can feed
 			if (isNearGatherers())
 			{
-				feed();
+				feed(GUARDIAN_FOOD_PET);
 			}
 			else//if not he hungers
 				setEnergy(getEnergy() - 1);
 
 			setMoisture(getMoisture() - 1);
-			restartClock();
+			setLostEnergy(true);
 		}
+		else if ((int)getClock()->getElapsedTime().asSeconds() % 2 != 0) setLostEnergy(false);
 		//boy it's time to die 
 		if (getMoisture() <= 0 || getEnergy() <= 0)
 			setDeadManWalking(true);
 
 		for (int i = 0; i < nearGatherers.size(); i++)
-		{
-			
+		{			
 			try
 			{
 				//this is going to throw a nullptr exception when a gatherer dies while being near the guardian
