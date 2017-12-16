@@ -13,7 +13,7 @@
 #include<cmath>
 #include <array>
 #include <list>
-
+using namespace GlobalVariables;
 
 namespace ThGkatz
 {

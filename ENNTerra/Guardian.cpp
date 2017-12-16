@@ -10,6 +10,8 @@
 #include <array>
 #include <list>
 
+using namespace GlobalVariables ;
+
 namespace ThGkatz
 {
 	Guardian::Guardian() : Organism() {

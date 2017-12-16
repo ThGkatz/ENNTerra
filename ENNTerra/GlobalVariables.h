@@ -1,21 +1,30 @@
 #pragma once
-#include "Organism.h"
-
 #ifndef GLOBALVARIABLES_H
 #define GLOBALVARIABLES_H
 
-namespace ThGkatz
-{
-	const int  GUARDIAN_TO_PREDATOR = 80;
-	const int  PREDATOR_TO_GATHERER = 80;
-	const int  GATHERER_TO_GUARDIAN = 80;
-	const int GATHERER_FOOD_BUSH = 5;
-	const int GATHERER_FOOD_PREDATOR = 2;
-	const int GATHERER_FOOD_GUARDIAN= 2;
-	const int PREDATOR_FOOD_GUARDIAN = 3;
-	const int PREDATOR_FOOD_GATHERER = 5;
-	const int GUARDIAN_FOOD_PREDATOR = 4;
-	const int GUARDIAN_FOOD_GATHERER = 3;
-	const int GUARDIAN_FOOD_PET = 2;
+namespace GlobalVariables {
+	extern int GUARDIAN_TO_PREDATOR;
+	extern int PREDATOR_TO_GATHERER;
+	extern int GATHERER_TO_GUARDIAN;
+	extern int GATHERER_FOOD_BUSH;
+	extern int GATHERER_FOOD_PREDATOR;
+	extern int GATHERER_FOOD_GUARDIAN;
+	extern int PREDATOR_FOOD_GUARDIAN;
+	extern int PREDATOR_FOOD_GATHERER;
+	extern int GUARDIAN_FOOD_PREDATOR;
+	extern int GUARDIAN_FOOD_GATHERER;
+	extern int GUARDIAN_FOOD_PET;
+	extern int initializationNumberOfOrganisms;
+	extern int numberOfPredators;
+	extern int numberOfGuardians;
+	extern int numberOfGatherers;
+	extern int energyLostPerSecond;
+	extern int moistureLostPerSecond;
+	extern int intervalBetweenGenerations;
+	extern int numberOfChildrenPredator;
+	extern int numberOfChildrenGuardian;
+	extern int numberOfChildrenGatherer;
 }
+
+
 #endif // !GLOBALVARIABLES_H

@@ -154,6 +154,7 @@
   <ItemGroup>
     <ClCompile Include="Bush.cpp" />
     <ClCompile Include="Gatherer.cpp" />
+    <ClCompile Include="GlobalVariables.cpp" />
     <ClCompile Include="Guardian.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyContactListener.cpp" />
