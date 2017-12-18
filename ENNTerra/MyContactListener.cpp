@@ -38,7 +38,7 @@ namespace ThGkatz
 			secondObject->checkCollision(firstObject);
 		}
 		//in case both are sensors nothing happens
-		
+	
 	}
 
 	void MyContactListener::EndContact(b2Contact* contact)

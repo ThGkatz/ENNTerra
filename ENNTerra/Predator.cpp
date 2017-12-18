@@ -28,7 +28,9 @@ namespace ThGkatz
 		setStimuli(std::vector<std::list< Stimulus* >>(7));
 	}
 
-	Predator::~Predator() {}
+	Predator::~Predator() {
+	
+	}
 
 	Gatherer* Predator::getClosestGatherer()
 	{
@@ -142,7 +144,7 @@ namespace ThGkatz
 		stim->angle = distAngleArrayGath[1];
 		stim->type = EntityTypes::NEARGATHERER;
 		addStimulus(stim);
-
+	
 		//create the actual array of inputs for the neural net.
 		createNeuralInputs();
 		
@@ -172,9 +174,16 @@ namespace ThGkatz
 			for (it = myStimuli[i].begin(); it != myStimuli[i].end(); ++it) {
 				//find the closest of the list (add to neuralInputs temp vector)
 				if (it == myStimuli[i].begin()) {
-					tempClosest = *it;
+					tempClosest->angle = (*it)->angle;
+					tempClosest->distance = (*it)->distance;
+					tempClosest->type = (*it)->type;
+
 				}
-				else if ((*it)->distance <= tempClosest->distance) tempClosest = *it;
+				else if ((*it)->distance <= tempClosest->distance) {
+					tempClosest->angle = (*it)->angle;
+					tempClosest->distance = (*it)->distance;
+					tempClosest->type = (*it)->type;
+				}
 				//find the average of the list (add to neuralInputs temp vector)
 				totalDistance += (*it)->distance;
 				totalAngle += (*it)->angle;
@@ -198,12 +207,13 @@ namespace ThGkatz
 				myTempInputs[i + counter + 1] = tempAverage->angle;
 				counter += 3;
 			}
+			delete tempAverage;
+			delete tempClosest;
 			
-		
 		}//end for stimuli
 		myTempInputs[myTempInputs.size() - 2] = getEnergy(); //energy takes 1 neuron
 		myTempInputs[myTempInputs.size() - 1] = getMoisture();//moisture takes one neuron
-
+		
 		//set the new NeauralInputs vector.
 		setNeuralInputs(myTempInputs);
 		//call the think function and move accordingly

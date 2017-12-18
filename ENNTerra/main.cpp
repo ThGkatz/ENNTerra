@@ -382,6 +382,7 @@ int main()
 				organisms.push_back(test1);
 			}			
 			generationChanged = true;
+			generationClock.restart();
 			std::cout << "Number Of Organisms in total : " << organisms.size() << std::endl;
 		}
 		else if (secondsOfCurrentGeneration % intervalBetweenGenerations != 0) generationChanged = false;

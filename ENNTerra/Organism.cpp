@@ -90,10 +90,17 @@ namespace ThGkatz
 			temp = temp->GetNext();
 			body->DestroyFixture(fixToDestroy);		
 		} while (temp != nullptr);
-
+		delete myB2Shape;
 		body->GetWorld()->DestroyBody(body);
-		
 		delete brain;
+		for (int i = 0; i < stimuli.size(); i++) {			
+			for (auto&& child : stimuli[i]) {
+				delete child;
+			}
+			stimuli[i].clear();
+		}		
+		stimuli.clear();
+		delete myNeuralWeights;
 	}
 
 	//getter methods
@@ -245,15 +252,17 @@ namespace ThGkatz
 	}
 
 	void Organism::addStimulus(Stimulus* stim) {
+	
 		stimuli[stim->type].push_back(stim);
 	}
 
 	void Organism::emptyStimuli() {
-		
-		for (int i = 0; i < stimuli.size(); i++) {
-			stimuli[i].clear();
+		for (int i = 0; i < stimuli.size(); i++) {			
+				for (auto&& child : stimuli[i]) {					
+						delete child;
+				}
+				stimuli[i].clear();			
 		}
-
 	}
 
 	void Organism::update()
@@ -352,21 +361,6 @@ namespace ThGkatz
 
 	void Organism::acquiredVisual(Entity* other)
 	{
-		if (Gatherer* temp = dynamic_cast<Gatherer*>(other)) {
-			//std::cout << "Hey look ! that's a Gatherer !\n";
-		}
-		else if (Rock* temp = dynamic_cast<Rock*>(other)) {
-			//std::cout << "Hey look ! that's a Rock !\n";
-		}
-		else if (River* temp = dynamic_cast<River*>(other))
-		{
-			//std::cout << "Hey look ! that's a River !\n";
-		}
-		else if (Bush* temp = dynamic_cast<Bush*>(other))
-		{
-			//std::cout << "Hey look ! that's a Bush !\n";
-		}
-		
 		visibleEntities.push_back(other);
 		
 	}
@@ -491,7 +485,7 @@ namespace ThGkatz
 
 		distAngleArray[1] = angle;
 		
-
+		delete vertices;
 		return distAngleArray;
 	}
 

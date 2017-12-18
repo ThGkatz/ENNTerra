@@ -32,7 +32,7 @@ namespace ThGkatz
 	}
 
 	Guardian::~Guardian() {
-		
+		nearGatherers.empty();
 	}
 
 	sf::ConvexShape* Guardian::createShape(sf::Vector2i position)
@@ -261,9 +261,16 @@ namespace ThGkatz
 			for (it = myStimuli[i].begin(); it != myStimuli[i].end(); ++it) {
 				//find the closest of the list (add to neuralInputs temp vector)
 				if (it == myStimuli[i].begin()) {
-					tempClosest = *it;
+					tempClosest->angle = (*it)->angle;
+					tempClosest->distance = (*it)->distance;
+					tempClosest->type = (*it)->type;
+
 				}
-				else if ((*it)->distance <= tempClosest->distance) tempClosest = *it;
+				else if ((*it)->distance <= tempClosest->distance) {
+					tempClosest->angle = (*it)->angle;
+					tempClosest->distance = (*it)->distance;
+					tempClosest->type = (*it)->type;
+				}
 				//find the average of the list (add to neuralInputs temp vector)
 				totalDistance += (*it)->distance;
 				totalAngle += (*it)->angle;
@@ -281,6 +288,9 @@ namespace ThGkatz
 				myTempInputs[i + counter + 1] = tempAverage->angle;
 				counter += 3;
 			}
+			delete tempAverage;
+			delete tempClosest;
+			
 		}//end for stimuli
 		myTempInputs[myTempInputs.size() - 3] = (isNearGatherers()?1:0); //near gatherers boolean var takes 1 neuron(Guardian only)
 		myTempInputs[myTempInputs.size() - 2] = getEnergy(); //energy takes 1 neuron
