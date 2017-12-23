@@ -170,9 +170,9 @@ int main()
 	//creation of the organisms
 	std::vector<Organism*> organisms = organismFactory(world, obstacles, initializationNumberOfOrganisms);
 	//get an organism of each spieces to get its parameters
-	Predator* myTestPredator;
-	Guardian* myTestGuardian;
-	Gatherer* myTestGatherer;
+	Predator* myTestPredator = nullptr;
+	Guardian* myTestGuardian = nullptr;
+	Gatherer* myTestGatherer = nullptr;
 	for (unsigned int i = 0; i < organisms.size(); i++) {
 		if (Predator* test = dynamic_cast<Predator*>(organisms[i])) { myTestPredator = test; }
 		if (Guardian* test = dynamic_cast<Guardian*>(organisms[i])) { myTestGuardian = test; }
@@ -202,42 +202,67 @@ int main()
 	gathererGA.parameters(params);
 
 	//now that the populations have been initialised , let's replace them with the actuall neural weights of our organisms.
+	int predatorCounter = 0, gathererCounter = 0, guardianCounter = 0;
+	for (unsigned int i = 0; i < organisms.size(); i++) {
+		if (Predator* test = dynamic_cast<Predator*>(organisms[i])) {
+			unsigned int arrayLength = test->getNeuralWeightsLength();
+			fann_connection* predatorConnection = new fann_connection[arrayLength];
+			test->getNeuralWeights(predatorConnection);
 
-	/*for (unsigned int i = 0; i < ngen; i++) {
-	//ga.populationSize(i+1);
-	ga.step();
-	GAGenome& myIndividual = ga.population().individual(0);
-	GAPopulation myPop = ga.population();
-	GA2DBinaryStringGenome genom1e(width1, height1, Objective);
-	//std::cout << "Individual : " << myIndividual << std::endl;
-	//std::cout << "Genome : " << *myGenome << std::endl;
+			arrayLength++;//for the clock
+			GA1DArrayGenome<float>* myPredatorGenome = new GA1DArrayGenome<float>(arrayLength);
+			for (unsigned int gene = 0; gene < arrayLength - 1; gene++) {
+				(*myPredatorGenome)[gene] = predatorConnection[gene].weight;
+			}
+			(*myPredatorGenome)[arrayLength - 1] = (float)test->getClock()->getElapsedTime().asSeconds();
 
-	GAGenome* myGenome = myPop.add(genom1e);
+			GAPopulation myPop = predatorGA.population();
+			GAGenome& myIndividual = predatorGA.population().individual(predatorCounter);
+			GAGenome* test1 = myPop.replace(myPredatorGenome , predatorCounter);
+			predatorCounter++;
 
-	std::cout << ga.population().size() << std::endl;
-	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+			predatorGA.population(myPop);
+		}
+		if (Guardian* test = dynamic_cast<Guardian*>(organisms[i])) {
+			unsigned int arrayLength = test->getNeuralWeightsLength();
+			fann_connection* guardianConnection = new fann_connection[arrayLength];
+			test->getNeuralWeights(guardianConnection);
 
-	//std::cout << ga.generation() << std::endl;
+			arrayLength++;//for the clock
+			GA1DArrayGenome<float>* myGuardianGenome= new GA1DArrayGenome<float>(arrayLength);
+			for (unsigned int gene = 0; gene < arrayLength - 1; gene++) {
+				(*myGuardianGenome)[gene] = guardianConnection[gene].weight;
+			}
+			(*myGuardianGenome)[arrayLength - 1] = (float)test->getClock()->getElapsedTime().asSeconds();
+			GAPopulation myPop = guardianGA.population();
+			GAGenome& myIndividual = guardianGA.population().individual(guardianCounter+1);
+			GAGenome* test1 = myPop.replace(myGuardianGenome, guardianCounter);
+			guardianCounter++;
+			guardianGA.population(myPop);
+			
+		}
+		if (Gatherer* test = dynamic_cast<Gatherer*>(organisms[i])) {
+			unsigned int arrayLength = test->getNeuralWeightsLength();
+			fann_connection* gathererConnection = new fann_connection[arrayLength];
+			test->getNeuralWeights(gathererConnection);
 
+			arrayLength++;//for the clock
+			GA1DArrayGenome<float>* myGathererGenome = new GA1DArrayGenome<float>(arrayLength);
+			for (unsigned int gene = 0; gene < arrayLength - 1; gene++) {
+				(*myGathererGenome)[gene] = gathererConnection[gene].weight;
+			}
+			(*myGathererGenome)[arrayLength - 1] = (float)test->getClock()->getElapsedTime().asSeconds();
+			GAPopulation myPop = gathererGA.population();
+			GAGenome& myIndividual = gathererGA.population().individual(gathererCounter);
+			GAGenome* test1 = myPop.replace(myGathererGenome, gathererCounter);
+			gathererCounter++;
+			gathererGA.population(myPop);
+			
+		
+		}
 	}
 
-
-	// Now we print out the best genome that the GA found.
-
-	std::cout << "The GA found:\n" << ga.statistics().bestIndividual() << "\n";
-	std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-	return 0;*/
-
-	/*sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
-	Guardian* testPre = new Guardian(world, position);
-	organisms.push_back(testPre);
-	sf::Vector2i position2 = findCoordinates(organisms, obstacles, 2);
-	Gatherer* testGath = new Gatherer(world, position2);
-	organisms.push_back(testGath);
-	sf::Vector2i position3 = findCoordinates(organisms, obstacles, 2);
-	Gatherer* testGath2 = new Gatherer(world, position3);
-	organisms.push_back(testGath2);*/
-
+	
 
 	float timestep =1/ 60.0f;
 	

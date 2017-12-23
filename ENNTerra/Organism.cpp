@@ -300,8 +300,7 @@ namespace ThGkatz
 	{
 		float desiredSpeed = outputs[1];
 		float desiredTorque = outputs[0];
-		
-		//std::cout << "Speed: " << desiredSpeed << " Torque : " << desiredTorque << std::endl;
+		desiredSpeed += 1.0f;//the neuralNet output is [-1 , 1] so we make it [0,2]
 		
 		//this is the angle in RADS returned by the body property .
 		//we change it in DEEGREES to make sense .
