@@ -73,15 +73,32 @@ namespace ThGkatz
 		}
 		
 		else if (Gatherer* other = dynamic_cast<Gatherer*>(otherEntity)) {
-			int myRandomNumber = rand() % 100 + 1;
-			if (myRandomNumber < PREDATOR_TO_GATHERER) {
+
+			bool thisIntent = getKillIntent();
+			bool otherIntent = other->getKillIntent();
+
+			if (!thisIntent && !otherIntent) return; // none of the organisms want to kill
+			else if (thisIntent&&otherIntent) {//both of the organisms want to kill
+				int myRandomNumber = rand() % 100 + 1;
+				if (myRandomNumber < PREDATOR_TO_GATHERER) {
+					feed(PREDATOR_FOOD_GATHERER);
+					other->setDeadManWalking(true);
+				}
+				else {
+					setDeadManWalking(true);
+					other->feed(GATHERER_FOOD_PREDATOR);
+				}
+			}
+			else if (thisIntent && !otherIntent) {//only this organism wants to kill.
 				feed(PREDATOR_FOOD_GATHERER);
 				other->setDeadManWalking(true);
 			}
-			else {
+			else {//only the other organism wants to kill. And he kills.
 				setDeadManWalking(true);
 				other->feed(GATHERER_FOOD_PREDATOR);
 			}
+
+			
 		}
 	}
 

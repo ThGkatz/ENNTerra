@@ -73,8 +73,8 @@ namespace ThGkatz
 		body->SetUserData(this);
 		shape = nullptr;
 		setNumberOfNeuralInputs(numberOfNeuralInputs);
-		//create an instance of neural network with 1 hidden layer and 2 output neurons
-		brain = new NeuralNetWrapper(getNumberOfNeuralInputs(), 2 , 3);
+		//create an instance of neural network with 1 hidden layer and 3 output neurons
+		brain = new NeuralNetWrapper(getNumberOfNeuralInputs(), 3 , 3);
 		myNeuralWeightsLength = brain->getWeightsLength();
 		myNeuralWeights = new fann_connection[myNeuralWeightsLength];
 	}
@@ -199,6 +199,10 @@ namespace ThGkatz
 	void Organism::getNeuralWeights(fann_connection* myConnection) {
 		brain->getWeights(myConnection);
 	}
+
+	const bool Organism::getKillIntent() const {
+		return killIntent;
+	}
 	//setter methods
 	void Organism::setTexture(sf::Texture* anotherTexture)
 	{
@@ -251,6 +255,9 @@ namespace ThGkatz
 		brain->setWeights(myConnection);
 	}
 
+	void Organism::setKillIntent(bool intent) {
+		killIntent = intent;
+	}
 	void Organism::addStimulus(Stimulus* stim) {
 	
 		stimuli[stim->type].push_back(stim);
@@ -296,10 +303,9 @@ namespace ThGkatz
 			
 	}
 
-	void Organism::move(fann_type* outputs)
+	void Organism::move(float desiredTorque , float desiredSpeed)
 	{
-		float desiredSpeed = outputs[1];
-		float desiredTorque = outputs[0];
+		
 		desiredSpeed += 1.0f;//the neuralNet output is [-1 , 1] so we make it [0,2]
 		
 		//this is the angle in RADS returned by the body property .
@@ -323,8 +329,14 @@ namespace ThGkatz
 	void Organism::think() {
 		std::vector<float> inputsVector = getNeuralInputs();
 		fann_type* inputsArray = &inputsVector[0];
-		
-		move(brain->run(inputsArray));
+		fann_type* outputs = brain->run(inputsArray);
+
+		float desiredSpeed = outputs[1];
+		float desiredTorque = outputs[0];
+		float killingIntent = outputs[2];
+		setKillIntent((killingIntent >= 0));//if the 3rd neural net output is >=0 then the organisms will kill any other outerspieces organism
+											//it comes in contact with.
+		move(desiredTorque , desiredSpeed);
 	
 	}
 

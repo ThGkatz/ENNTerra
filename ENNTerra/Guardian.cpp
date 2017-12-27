@@ -67,15 +67,32 @@ namespace ThGkatz
 		if (River* temp = dynamic_cast<River*>(otherEntity))
 			drink();
 		else if (Predator* other = dynamic_cast<Predator*>(otherEntity)) {
-			int myRandomNumber = rand() % 100 + 1;
-			if (myRandomNumber > GUARDIAN_TO_PREDATOR) {
-				setDeadManWalking(true);
-				other->feed(PREDATOR_FOOD_GUARDIAN);
+
+			bool thisIntent = getKillIntent();
+			bool otherIntent = other->getKillIntent();
+
+			if (!thisIntent && !otherIntent) return; // none of the organisms want to kill
+			else if (thisIntent&&otherIntent) {//both of the organisms want to kill
+				int myRandomNumber = rand() % 100 + 1;
+				if (myRandomNumber > GUARDIAN_TO_PREDATOR) {
+					setDeadManWalking(true);
+					other->feed(PREDATOR_FOOD_GUARDIAN);
+				}
+				else {
+					feed(GUARDIAN_FOOD_PREDATOR);
+					other->setDeadManWalking(true);
+				}
 			}
-			else {
+			else if (thisIntent && !otherIntent) {//only this organism wants to kill.
 				feed(GUARDIAN_FOOD_PREDATOR);
 				other->setDeadManWalking(true);
 			}
+			else {//only the other organism wants to kill. And he kills.
+				setDeadManWalking(true);
+				other->feed(PREDATOR_FOOD_GUARDIAN);
+			}
+
+			
 		}
 		
 	}

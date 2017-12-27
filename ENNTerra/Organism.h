@@ -56,6 +56,7 @@ namespace ThGkatz
 		std::vector<float> getNeuralInputs();
 		const int getNumberOfNeuralInputs();
 		const bool getLostEnergy();
+		const bool getKillIntent() const;
 		//setters
 		void setTexture(sf::Texture*);
 		void setShape(sf::ConvexShape*);
@@ -68,6 +69,7 @@ namespace ThGkatz
 		void setStimuli(std::vector<std::list<Stimulus*>>);
 		void setLostEnergy(bool);
 		void setNeuralWeights(fann_connection*);
+		void setKillIntent(bool);
 
 	private:
 		b2Body* body;
@@ -90,6 +92,7 @@ namespace ThGkatz
 		bool lostEnergy = false;
 		fann_connection* myNeuralWeights;
 		unsigned int myNeuralWeightsLength;
+		bool killIntent = false;
 
 	private:
 		//creates and returns the virtual repressentation of the organism as an sf::ConvexShape (triangle)
@@ -103,8 +106,8 @@ namespace ThGkatz
 		//In addition, more neurons are created depending on the organism type, like energy and moisture.
 		virtual void createNeuralInputs() = 0;
 		
-		//
-		void move(fann_type*);
+		//inputs : desiredSpeed and desiredTorque from the Neural Network think() function.
+		void move(float , float);
 		
 
 
