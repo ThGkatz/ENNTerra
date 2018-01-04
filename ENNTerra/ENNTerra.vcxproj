@@ -158,6 +158,7 @@
     <ClCompile Include="Guardian.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyContactListener.cpp" />
+    <ClCompile Include="myIncrementalGA.cpp" />
     <ClCompile Include="NeuralNetWrapper.cpp" />
     <ClCompile Include="Obstacle.cpp" />
     <ClCompile Include="Organism.cpp" />
@@ -172,6 +173,7 @@
     <ClInclude Include="GlobalVariables.h" />
     <ClInclude Include="Guardian.h" />
     <ClInclude Include="MyContactListener.h" />
+    <ClInclude Include="myIncrementalGA.h" />
     <ClInclude Include="NeuralNetWrapper.h" />
     <ClInclude Include="Obstacle.h" />
     <ClInclude Include="Organism.h" />

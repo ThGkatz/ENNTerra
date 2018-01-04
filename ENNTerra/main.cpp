@@ -12,9 +12,7 @@
 #include "Guardian.h"
 #include "Organism.h"
 #include "Stimulus.h"
-#include "ga/GAIncGA.h"	// we're going to use the simple GA
-#include "ga/GA2DBinStrGenome.h" // and the 2D binary string genome
-#include "ga/GA1DArrayGenome.h" // and the 2D binary string genome
+#include "myIncrementalGA.h"	
 #include "ga/std_stream.h"
 #include "GlobalVariables.h"
 #include<iostream>
@@ -42,6 +40,7 @@ using ThGkatz::Predator;
 using ThGkatz::Guardian;
 using ThGkatz::Organism;
 using ThGkatz::Stimulus;
+using ThGkatz::myIncrementalGA;
 using namespace GlobalVariables;
 
 
@@ -112,6 +111,7 @@ using a basic loop. Nothing to see here , move along.
 Parameter : the already defined Organism's vector */
 void setClosestGathererOfPredator(std::vector<Organism*>);
 float Objective(GAGenome &);
+void  Initializer(GAGenome&);
 int main()
 {
 
@@ -184,12 +184,14 @@ int main()
 	GA1DArrayGenome<float> predatorGenome(myTestPredator->getNeuralWeightsLength() + 1, Objective);
 	GA1DArrayGenome<float> guardianGenome(myTestGuardian->getNeuralWeightsLength() + 1, Objective);
 	GA1DArrayGenome<float> gathererGenome(myTestGatherer->getNeuralWeightsLength() + 1, Objective);
-
-	GAIncrementalGA predatorGA(predatorGenome);
-	GAIncrementalGA guardianGA(guardianGenome);
-	GAIncrementalGA gathererGA(gathererGenome);
+	predatorGenome.initializer(::Initializer);
+	guardianGenome.initializer(::Initializer);
+	gathererGenome.initializer(::Initializer);
+	myIncrementalGA predatorGA(predatorGenome);
+	myIncrementalGA guardianGA(guardianGenome);
+	myIncrementalGA gathererGA(gathererGenome);
 	GAParameterList params;
-	GAIncrementalGA::registerDefaultParameters(params);
+	myIncrementalGA::registerDefaultParameters(params);
 	params.set(gaNpopulationSize, initializationNumberOfOrganisms*2);	// population size
 	params.set(gaNpCrossover, 0.9);	// probability of crossover
 	params.set(gaNpMutation, 0.001);	// probability of mutation
@@ -197,10 +199,26 @@ int main()
 	params.set(gaNscoreFrequency, 10);	// how often to record scores
 	params.set(gaNflushFrequency, 50);	// how often to dump scores to file
 	params.set(gaNnOffspring, 1);
+	
 	predatorGA.parameters(params);
 	guardianGA.parameters(params);
 	gathererGA.parameters(params);
-
+	//the selection method will be RANK (only the bet ones can be selected as parents)
+	GARankSelector& s = GARankSelector(GASelectionScheme::RAW);
+	GANoScaling& scale = GANoScaling();
+	predatorGA.selector(s);
+	predatorGA.scaling(scale);
+	guardianGA.selector(s);
+	guardianGA.scaling(scale);
+	gathererGA.selector(s);
+	gathererGA.scaling(scale);
+	predatorGA.replacement(myIncrementalGA::WORST);
+	guardianGA.replacement(myIncrementalGA::WORST);
+	gathererGA.replacement(myIncrementalGA::WORST);
+	predatorGA.initialize();
+	guardianGA.initialize();
+	gathererGA.initialize();
+	
 	//now that the populations have been initialised , let's replace them with the actuall neural weights of our organisms.
 	int predatorCounter = 0, gathererCounter = 0, guardianCounter = 0;
 	for (unsigned int i = 0; i < organisms.size(); i++) {
@@ -361,12 +379,7 @@ int main()
 		}
 		if (secondsOfCurrentGeneration>0&& secondsOfCurrentGeneration % intervalBetweenGenerations == 0&&!generationChanged) {//time for a new generation babe !!!
 			
-			//if one of the species died, terminate
-			if (numberOfGatherers == 0 || numberOfGuardians == 0 || numberOfPredators == 0) {
-				std::cout << "Shit ! One of the species has been exterminated" << std::endl;
-				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-				return 0;
-			}
+			
 			numberOfPredators = 0;
 			numberOfGuardians = 0;
 			numberOfGatherers = 0;
@@ -381,45 +394,46 @@ int main()
 				if (Gatherer* test = dynamic_cast<Gatherer*>(organisms[i]))
 					numberOfGatherers++;
 			}
-			std::cout << "Predators Number: " << numberOfPredators << std::endl;
-			std::cout << "Guardians Number: " << numberOfGuardians << std::endl;
-			std::cout << "Gatherers Number: " << numberOfGatherers << std::endl;
-
-			//depending on those numbers let's try to balance the populations by controlling the number of children
-
-			//PREDATORS
-			if (numberOfPredators > numberOfGatherers*2 || numberOfPredators >numberOfGuardians*2) {
-				--numberOfChildrenPredator;
-				if (numberOfChildrenPredator < 1) numberOfChildrenPredator = 1;
+			
+			//if one of the species died, terminate
+			if (numberOfGatherers == 0 || numberOfGuardians == 0 || numberOfPredators == 0) {
+				std::cout << "Shit ! One of the species has been exterminated" << std::endl;
+				std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+				return 0;
 			}
-			else if (numberOfPredators < initializationNumberOfOrganisms / 2) numberOfChildrenPredator++;
+			//depending on those numbers let's try to balance the populations by controlling the number of children
+			numberOfChildrenPredator = 2;
+			numberOfChildrenGuardian = 2;
+			numberOfChildrenGatherer = 2;
+			//PREDATORS
+			/*if (numberOfPredators > numberOfGatherers*2 || numberOfPredators >numberOfGuardians*2) {
+				numberOfChildrenPredator = 1;
+			}
+			else if (numberOfPredators < initializationNumberOfOrganisms / 2) numberOfChildrenPredator=2;
 			
 			//GUARDIANS
 			if (numberOfGuardians > numberOfPredators*2 || numberOfGuardians> numberOfGatherers*2) {
-				--numberOfChildrenGuardian;
-				if (numberOfChildrenGuardian < 1) numberOfChildrenGuardian = 1;
+				numberOfChildrenGuardian = 1;
 			}
-			else if (numberOfGuardians < initializationNumberOfOrganisms / 2) numberOfChildrenGuardian++;
+			else if (numberOfGuardians < initializationNumberOfOrganisms / 2) numberOfChildrenGuardian=2;
 			//GATHERERS
 			if (numberOfGatherers > numberOfPredators*2 || numberOfGatherers > numberOfPredators*2) {
-				--numberOfChildrenGatherer;
-				if (numberOfChildrenGatherer < 1) numberOfChildrenGatherer = 1;
+				numberOfChildrenGatherer = 1;
 			}
-			else if (numberOfGatherers < initializationNumberOfOrganisms / 2)numberOfChildrenGatherer++;
+			else if (numberOfGatherers < initializationNumberOfOrganisms / 2)numberOfChildrenGatherer=2;*/
 
-
-			//let's get the best individual of this generation cause boy it's time to evolve .
+			
+			
 			Predator* bestPredator = nullptr;
 			Guardian* bestGuardian = nullptr;
 			Gatherer* bestGatherer = nullptr;
-			int maxPredatorTime = 0;
-			int maxGuardianTime = 0;
-			int maxGathererTime = 0;
+			
 			std::vector<GA1DArrayGenome<float>> predatorGenomes;
 			std::vector<GA1DArrayGenome<float>> guardianGenomes;
 			std::vector<GA1DArrayGenome<float>> gathererGenomes;
 			for (unsigned int j = 0; j < organisms.size(); j++) {				
 					if (Predator* test = dynamic_cast<Predator*>(organisms[j])) {
+						bestPredator = test;
 						unsigned int arrayLength = test->getNeuralWeightsLength();
 						fann_connection* predatorConnection = new fann_connection[arrayLength];
 						test->getNeuralWeights(predatorConnection);
@@ -430,10 +444,12 @@ int main()
 							myPredatorGenome[gene] = predatorConnection[gene].weight;
 						}
 						myPredatorGenome[arrayLength - 1] = (float)test->getClock()->getElapsedTime().asSeconds();
+						myPredatorGenome.score(Objective(myPredatorGenome));
 						predatorGenomes.push_back(myPredatorGenome);
 					
 					}								
 					if (Guardian* test = dynamic_cast<Guardian*>(organisms[j])) {
+						bestGuardian = test;
 						unsigned int arrayLength = test->getNeuralWeightsLength();
 						fann_connection* guardianConnection = new fann_connection[arrayLength];
 						test->getNeuralWeights(guardianConnection);
@@ -444,61 +460,163 @@ int main()
 							myGuardianGenome[gene] = guardianConnection[gene].weight;
 						}
 						myGuardianGenome[arrayLength - 1] = (float)test->getClock()->getElapsedTime().asSeconds();
+						myGuardianGenome.score(Objective(myGuardianGenome));
 						guardianGenomes.push_back(myGuardianGenome);
 					}
 					if (Gatherer* test = dynamic_cast<Gatherer*>(organisms[j])) {
+						bestGatherer = test;
 						unsigned int arrayLength = test->getNeuralWeightsLength();
 						fann_connection* gathererConnection = new fann_connection[arrayLength];
 						test->getNeuralWeights(gathererConnection);
-
+					
 						arrayLength++;//for the clock
 						GA1DArrayGenome<float> myGathererGenome(arrayLength);
 						for (unsigned int gene = 0; gene < arrayLength - 1; gene++) {
 							myGathererGenome[gene] = gathererConnection[gene].weight;
 						}
 						myGathererGenome[arrayLength - 1] = (float)test->getClock()->getElapsedTime().asSeconds();
+						myGathererGenome.score(Objective(myGathererGenome));
 						gathererGenomes.push_back(myGathererGenome);
 					}								
 			}
-		/*	//create the Predator Children and add them to the pile
-			assert(bestPredator != nullptr&&bestPredator != NULL);
-			unsigned int arrayLengthPredator = bestPredator->getNeuralWeightsLength();
-			fann_connection* testConnectionPredator = new fann_connection[arrayLengthPredator];
-			bestPredator->getNeuralWeights(testConnectionPredator);
 
-
-
-			for (short j = 0; j < numberOfChildrenPredator; j++) {
-				sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
-				Predator* test1 = new Predator(world, position);
-				test1->setNeuralWeights(testConnectionPredator);
-				organisms.push_back(test1);
+			//1. Update the populations of each GA with the living organisms' genomes.
+			//Predators
+			int genomeSizePredator = predatorGenomes[0].size();
+			GAPopulation myPopPredator = predatorGA.population();
+			//destroy all the existing genomes.
+			GA1DArrayGenome<float> initializeGenomePredator(genomeSizePredator, Objective);
+			unsigned int livingTimer = initializeGenomePredator.size()-1;
+			initializeGenomePredator[livingTimer] = -10.0f;
+			initializeGenomePredator.initializer(Initializer);
+			for (unsigned int g = 0; g < myPopPredator.size(); g++) {
+				myPopPredator.individual(g) = initializeGenomePredator;
 			}
-			//create the Guardian Children and add them to the pile
-			assert(bestGuardian != nullptr&&bestGuardian != NULL);
-			unsigned int arrayLengthGuardian = bestGuardian->getNeuralWeightsLength();
-			fann_connection* testConnectionGuardian = new fann_connection[arrayLengthGuardian];
-			bestGuardian->getNeuralWeights(testConnectionGuardian);
-			for (short j = 0; j < numberOfChildrenGuardian; j++) {
-				sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
-				Guardian* test1 = new Guardian(world, position);
-				test1->setNeuralWeights(testConnectionGuardian);
-				organisms.push_back(test1);
+			//append the actual living ones.
+			for (unsigned int i = 0; i < predatorGenomes.size(); i++) {
+				myPopPredator.individual(i) = predatorGenomes[i];
 			}
-			//create the Gatherer Children and add them to the pile
-			assert(bestGatherer != nullptr&&bestGatherer != NULL);
-			unsigned int arrayLengthGatherer = bestGatherer->getNeuralWeightsLength();
-			fann_connection* testConnectionGatherer = new fann_connection[arrayLengthGatherer];
-			bestGatherer->getNeuralWeights(testConnectionGatherer);
-			for (short j = 0; j < numberOfChildrenGatherer; j++) {
+			
+			predatorGA.population(myPopPredator);
+			//Guardians
+			int genomeSizeGuardian = guardianGenomes[0].size();
+			GAPopulation myPopGuardian = guardianGA.population();
+			//destroy all the existing genomes.
+			GA1DArrayGenome<float> initializeGenomeGuardian(genomeSizeGuardian, Objective);
+			unsigned int livingTimerG1 = initializeGenomeGuardian.size() - 1;
+			initializeGenomeGuardian[livingTimerG1] = -10.0f;
+			initializeGenomeGuardian.initializer(Initializer);
+
+			for (unsigned int g = 0; g < myPopGuardian.size(); g++) {
+				myPopGuardian.individual(g) = initializeGenomeGuardian;
+			}
+			//append the actual living ones.
+			for (unsigned int i = 0; i < guardianGenomes.size(); i++) {
+				myPopGuardian.individual(i) = guardianGenomes[i];
+			}
+
+			guardianGA.population(myPopGuardian);
+			//Gatherer
+			int genomeSizeGatherer = gathererGenomes[0].size();
+			GAPopulation myPopGatherer = gathererGA.population();
+			//destroy all the existing genomes.
+			GA1DArrayGenome<float> initializeGenomeGatherer(genomeSizeGatherer, Objective);
+			unsigned int livingTimerG2 = initializeGenomeGatherer.size() - 1;
+			initializeGenomeGatherer[livingTimerG2] = -10.0f;
+			initializeGenomeGatherer.initializer(Initializer);
+
+			for (unsigned int g = 0; g < myPopGatherer.size(); g++) {
+				myPopGatherer.individual(g) = initializeGenomeGatherer;
+			}
+			//append the actual living ones.
+			for (unsigned int i = 0; i < gathererGenomes.size(); i++) {
+				myPopGatherer.individual(i) = gathererGenomes[i];
+			}
+			gathererGA.population(myPopGatherer);
+			
+			//2. Step it up after configuring the number of children for each spieces
+			predatorGA.nOffspring(numberOfChildrenPredator);
+			guardianGA.nOffspring(numberOfChildrenGuardian);
+			gathererGA.nOffspring(numberOfChildrenGatherer);
+			
+			
+			//selection, crossover , mutations , replacing...all done inside the step functions 
+			predatorGA.step();
+			guardianGA.step();
+			gathererGA.step();
+		
+			//3. Get the new genomes (children) and create the new organisms with them.
+			GAPopulation myPredatorPopulation = predatorGA.population();
+			GAPopulation myGuardianPopulation = guardianGA.population();
+			GAPopulation myGathererPopulation = gathererGA.population();
+			
+			for (int x = 0; x < myPredatorPopulation.size(); x++) {
+				std::cout << myPredatorPopulation.individual(x).score()<< std::endl;
+			}
+
+			for (unsigned int predatorCounter = 0; predatorCounter <myPredatorPopulation.size(); predatorCounter++) {
+				
+				GA1DArrayGenome<float> & child = (GA1DArrayGenome<float> &)myPredatorPopulation.individual(predatorCounter);
+				if (child.gene(child.size() - 1) != 1000) continue;
+				//std::cout << "Predator Child: " << child << std::endl;
+				//create the fann_connection using the genome and add the new organism to the pile
+				fann_connection* childConnection = new fann_connection[child.size() - 1];
+				assert(bestPredator->getNeuralWeightsLength() == child.size() - 1);
+				bestPredator->getNeuralWeights(childConnection);
+				for (unsigned int i = 0; i < child.size() - 1; i++) {
+					childConnection[i].weight = child.gene(i);
+				}
+				//create the new organism
 				sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
-				Gatherer* test1 = new Gatherer(world, position);
-				test1->setNeuralWeights(testConnectionGatherer);
-				organisms.push_back(test1);
-			}			*/
+				Predator* predatorChild = new Predator(world, position);
+				//set the neural inputs array we got from the genome
+				predatorChild->setNeuralWeights(childConnection);
+				//add it to the organisms vector
+				organisms.push_back(predatorChild);
+			}
+			for (unsigned int guardianCounter = 0; guardianCounter < myGuardianPopulation.size(); guardianCounter++) {
+				GA1DArrayGenome<float> & child = (GA1DArrayGenome<float> &)myGuardianPopulation.individual(guardianCounter);
+				if (child.gene(child.size() - 1) != 1000) continue;
+				//std::cout<< "Guardian Child: " << child << std::endl;
+				//create the fann_connection using the genome and add the new organism to the pile
+				fann_connection* childConnection = new fann_connection[child.size() - 1];
+				assert(bestGuardian->getNeuralWeightsLength() == child.size() - 1);
+				bestGuardian->getNeuralWeights(childConnection);
+				for (unsigned int i = 0; i < child.size() - 1; i++) {
+					childConnection[i].weight = child.gene(i);
+				}
+				//create the new organism
+				sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
+				Guardian* guardianChild = new Guardian(world, position);
+				//set the neural inputs array we got from the genome
+				guardianChild->setNeuralWeights(childConnection);
+				//add it to the organisms vector
+				organisms.push_back(guardianChild);
+			}
+			for (unsigned int gathererCounter = 0; gathererCounter < myGathererPopulation.size(); gathererCounter++) {
+				GA1DArrayGenome<float> & child = (GA1DArrayGenome<float> &)myGathererPopulation.individual(gathererCounter);
+				if (child.gene(child.size() - 1) != 1000) continue;
+				//std::cout << "Gatherer Child: " << child.gene(child.size() - 1) << std::endl;
+				//create the fann_connection using the genome and add the new organism to the pile
+				fann_connection* childConnection = new fann_connection[child.size() - 1];
+				assert(bestGatherer->getNeuralWeightsLength() == child.size() - 1);
+				bestGatherer->getNeuralWeights(childConnection);
+				for (unsigned int i = 0; i < child.size() - 1; i++) {
+					childConnection[i].weight = child.gene(i);
+				}
+				//create the new organism
+				sf::Vector2i position = findCoordinates(organisms, obstacles, 2);
+				Gatherer* gathererChild = new Gatherer(world, position);
+				//set the neural inputs array we got from the genome
+				gathererChild->setNeuralWeights(childConnection);
+				//add it to the organisms vector
+				organisms.push_back(gathererChild);
+			
+			}
+
 			generationChanged = true;
 			generationClock.restart();
-			std::cout << "Number Of Organisms in total : " << organisms.size() << std::endl;
+		
 		}
 		else if (secondsOfCurrentGeneration % intervalBetweenGenerations != 0) generationChanged = false;
 
@@ -510,12 +628,6 @@ int main()
 		myWindow.display();
 	}//while window.isOpen
 	
-	/*Organism* temp = organisms[0];
-	std::vector<float> myTest = temp->getNeuralInputs();
-	for (short i = 0; i < myTest.size(); i++) {
-			std::cout << "-------------"<< i << "-------------" << std::endl;
-			std::cout << myTest[i] << std::endl;
-	}*/
 	int max = 0;
 	Organism* bestGuardian = nullptr;
 	for (unsigned int j = 0; j < organisms.size(); j++) {
@@ -906,18 +1018,15 @@ void setClosestGathererOfPredator(std::vector<Organism*> organisms)
 }
 float
 Objective(GAGenome& g) {
-	GA2DBinaryStringGenome & genome = (GA2DBinaryStringGenome &)g;
-	float score = 0.0;
-	int count = 0;
-	for (int i = 0; i<genome.width(); i++) {
-		for (int j = 0; j<genome.height(); j++) {
-			if (genome.gene(i, j) == 0 && count % 2 == 0)
-				score += 1.0;
-			if (genome.gene(i, j) == 1 && count % 2 != 0)
-				score += 1.0;
-			count++;
-		}
-	}
+	GA1DArrayGenome<float> & genome = (GA1DArrayGenome<float> &)g;
+	float score = genome.gene(genome.size() - 1);
+	if (score < 0) score = 0;
 	return score;
 }
 
+void
+Initializer(GAGenome& g)
+{
+	GA1DArrayGenome<float>& genome = (GA1DArrayGenome<float>&)g;
+	genome.gene(0, GARandomFloat(-100.0, 100.0));
+}
